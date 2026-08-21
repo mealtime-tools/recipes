@@ -1,0 +1,46 @@
+{
+  "note": "Golden vectors for the recipe share payload. base64url(raw-deflate(compact json)), padding stripped. The Python encoder and the JS decoder must both agree with these.",
+  "fragment_key": "r",
+  "cases": [
+    {
+      "label": "empty",
+      "payload": {
+        "v": 1
+      },
+      "encoded": "q1YqU7IyrAUA"
+    },
+    {
+      "label": "minimal",
+      "payload": {
+        "v": 1,
+        "n": "Toast",
+        "i": [["Sourdough", 60, 258.0, 9.1, 2.1, 47.5]]
+      },
+      "encoded": "q1YqU7Iy1FHKU7JSCslPLC5R0lHKVLKKjlYKzi8tSskvTc9Q0jEz0DEytdAz0LHUM9QxAmITcz3T2NhaAA"
+    },
+    {
+      "label": "servings-and-notes",
+      "payload": {
+        "v": 1,
+        "n": "Sourdough Pizza",
+        "s": 2,
+        "t": "Stretch cold, from the edges.\nBake 8 min at max heat.",
+        "i": [
+          ["Pizza Dough", 475, 268.0, 8.9, 3.1, 49.2],
+          ["Passata", 100, 34.0, 1.6, 0.2, 6.4],
+          ["Mozzarella", 75, 280.0, 22.0, 21.0, 1.5]
+        ]
+      },
+      "encoded": "Hc0_C4MwEIfhr3LcfBxJ_FN1LF0LhY7WIWiqUjUQYymWfvcmLrf8Ht774hsrSbhghXe7uc5u_QC3cd81Eq5YKUIfN--Mbwdo7dQRPJ2dwQ8GTNeblR_LWb8MFDCPC2gPs_7AYLTnkBixqms8gnCJcaT0lJHKCxZUcEkJS0pLVg0FptdV-_BZCkFJGoTknAQryjmN4GpDx5lpCiZWChGMUvHIQ2dN8_sD"
+    },
+    {
+      "label": "unicode",
+      "payload": {
+        "v": 1,
+        "n": "Café Crème Brûlée",
+        "i": [["Crème fraîche", 120, 292.0, 2.4, 30.0, 2.9]]
+      },
+      "encoded": "q1YqU7Iy1FHKU7JSck5MO7xSwbno8IrcVAWnosO7cw6vTFXSUcpUsoqOVoKKpxUlHl6XnAEUNzQy0DGyNNIDknomOsYGYIZlbGwtAA"
+    }
+  ]
+}
