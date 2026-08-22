@@ -23,7 +23,9 @@ def partial_recipe() -> Recipe:
                 id="1",
                 grams=150,
                 name="Chicken",
-                macros=Macros(kcal=165.0, protein=31.0, fat=3.6, carbs=0.0),
+                macros=Macros(
+                    kcal=165.0, protein=31.0, fat=3.6, carbohydrates=0.0
+                ),
             ),
             Ingredient(source="coles", id="404", grams=200),
             Ingredient(source="usda", id="405", grams=100),

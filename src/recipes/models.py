@@ -9,15 +9,28 @@ Keeping both is what lets a recipe outlive the database it came from.
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from nutrition import energy, vocabulary
+
 # `overlay` is storage, never a source; see SPEC.
 PRODUCT_SOURCES = ("coles", "woolworths", "afcd", "usda", "manual")
 
-# The four a snapshot must carry to be usable for arithmetic at all.
-MACRO_KEYS = ("kcal", "protein", "fat", "carbs")
+# The four a snapshot must carry to be usable for arithmetic at all: the energy
+# everything compares, and the three macros every panel states. Which four is
+# this package's business; what they are called is not, so the names and their
+# order come from the shared vocabulary.
+#
+# `energy.REQUIRED` and not `energy.KCAL_PER_GRAM`: alcohol has an Atwater
+# factor and no label outside the drinks aisle states it, so requiring it would
+# make every recipe incomplete.
+MACRO_KEYS = ("kcal", *energy.REQUIRED)
 
 # Carried when the source record has them and absent when it does not, so a
-# record that never stated its fibre cannot be read as one stating zero.
-OPTIONAL_NUTRIENT_KEYS = ("fiber", "sodium", "sugar")
+# record that never stated its fibre cannot be read as one stating zero. Named
+# in the spelling a person would write and resolved through the vocabulary, so
+# a rename there lands here rather than diverging.
+OPTIONAL_NUTRIENT_KEYS = tuple(
+    vocabulary.resolve(name) for name in ("fibre", "sodium", "sugar")
+)
 
 # Every nutrient a snapshot may carry, in the order everything renders them.
 NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
@@ -30,8 +43,8 @@ class Macros:
     kcal: float
     protein: float
     fat: float
-    carbs: float
-    fiber: float | None = None
+    carbohydrates: float
+    dietary_fiber: float | None = None
     sodium: float | None = None
     sugar: float | None = None
 
@@ -39,8 +52,8 @@ class Macros:
         """Only the nutrients this snapshot has. An absent one is no key.
 
         Omitted rather than written null: the YAML store and the JSON
-        description both read this, and `fiber: null` in a file invites the
-        next reader to treat it as a number.
+        description both read this, and `dietary_fiber: null` in a file
+        invites the next reader to treat it as a number.
         """
         values = {key: getattr(self, key) for key in MACRO_KEYS}
         for key in OPTIONAL_NUTRIENT_KEYS:
@@ -62,8 +75,8 @@ class Product:
     kcal: float
     protein: float
     fat: float
-    carbs: float
-    fiber: float | None = None
+    carbohydrates: float
+    dietary_fiber: float | None = None
     sodium: float | None = None
     sugar: float | None = None
     source: str = ""

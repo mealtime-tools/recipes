@@ -31,6 +31,7 @@ from recipes.macros import (
     recipe_macros,
     unresolved,
 )
+from recipes.models import MACRO_KEYS
 from recipes.render import ingredient_rows, macro_summary
 
 
@@ -85,10 +86,10 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
     id is the recipe's identity key, which `show`, `fit`, `share` and
     `resolve` all accept as a name.
 
-    `per_serving` appears twice on purpose: the shared record's copy is what
-    an orchestrator ranks and filters on, and agentcli fixes its keys at the
-    four macros; `detail.per_serving` is this recipe's own answer, fibre
-    included.
+    `per_serving` goes out in the canonical names, unnarrowed: the shared
+    record carries whatever a source published, and every source that feeds
+    the same merged list has to spell a nutrient the same way. `required` is
+    which of them count as a full set, which is this package's business.
     """
     recipe = stored.recipe
     totals = recipe_macros(recipe) if is_complete(recipe) else None
@@ -98,21 +99,18 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
         identifier=store.recipe_key(recipe.name),
         name=recipe.name,
         per_serving=dict(totals.per_serving) if totals else {},
+        required=MACRO_KEYS,
         detail={
             "servings": parse_servings(recipe.servings),
             "tags": list(recipe.tags),
             "notes": recipe.notes,
             "ingredients": ingredient_rows(recipe),
+            # The one figure `per_serving` does not already give: a caller
+            # cannot get back to it without knowing `servings`.
             "total": totals.total if totals else None,
-            # The shared record above is agentcli's, and it carries the four
-            # macros it defines and no more, so every nutrient this recipe can
-            # report is published here as well. Without it a caller wanting
-            # fibre per serving would divide a total by `servings` itself,
-            # which is the hand-arithmetic this tool exists to own.
-            "per_serving": dict(totals.per_serving) if totals else None,
             # A nutrient no total could report, and the ingredients that are
-            # the reason: absent from `detail.per_serving` is the fact, and
-            # this is why.
+            # the reason: absent from `per_serving` is the fact, and this is
+            # why.
             "unresolved": unresolved(recipe),
             # The file to edit: authoring a recipe is editing its YAML.
             "path": str(stored.path),
@@ -150,12 +148,7 @@ def _human(payload: dict[str, Any]) -> Iterable[str]:
         servings = record["detail"]["servings"]
         plural = "" if servings == 1 else "s"
         yield f"{record['name']}  ({servings} serving{plural})"
-        # This recipe's own figures, not the shared record's four: a person
-        # reading the ranked list would otherwise conclude a recipe has no
-        # fibre where `show` prints it, and go and divide a total by hand.
-        yield (
-            f"  per serving  {macro_summary(record['detail']['per_serving'])}"
-        )
+        yield f"  per serving  {macro_summary(record['per_serving'])}"
 
     for item in payload["skipped_incomplete"]:
         missing = "; ".join(item["unresolved"])

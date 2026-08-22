@@ -26,6 +26,14 @@ FIBROUS = FakeLookup(
         ("coles", "3"): ("Mozzarella", 280.0, 22.0, 21.0, 1.5, 0.0),
     }
 )
+# Fibre and sodium both, which is every optional nutrient a total can reach.
+LABELLED = FakeLookup(
+    {
+        ("coles", "1"): ("Pizza Dough", 268.0, 8.9, 3.1, 49.2, 2.0, 480.0),
+        ("coles", "2"): ("Passata", 34.0, 1.6, 0.2, 6.4, 1.3, 20.0),
+        ("coles", "3"): ("Mozzarella", 280.0, 22.0, 21.0, 1.5, 0.0, 600.0),
+    }
+)
 NOTES = "Stretch cold, from the edges.\nBake 8 min at max heat."
 
 # What an agent writes: a reference, an amount, and no macro numbers.
@@ -164,9 +172,9 @@ def test_totals_carry_a_nutrient_every_ingredient_supplied(tmp_path) -> None:
     shown = invoke(main, ["show", "Sourdough Pizza", "--dir", str(tmp_path)])
 
     # 475 g at 2/100 g, 100 g at 1.3/100 g, 75 g at a genuine 0/100 g.
-    assert resolved["macros"]["total"]["fiber"] == 10.8
-    assert resolved["macros"]["per_serving"]["fiber"] == 5.4
-    assert "fiber 10.8" in shown.output
+    assert resolved["macros"]["total"]["dietary_fiber"] == 10.8
+    assert resolved["macros"]["per_serving"]["dietary_fiber"] == 5.4
+    assert "dietary_fiber 10.8" in shown.output
     # `complete` still means the four required macros, and says nothing more.
     assert resolved["complete"] is True
     # No ingredient stated sugar, so no sugar total is offered at all.
@@ -185,9 +193,9 @@ def test_force_reports_a_newly_available_nutrient(tmp_path) -> None:
     assert changed["changes"][1] == {
         "ref": "coles:2",
         "name": "Passata",
-        "fields": {"fiber": {"before": None, "after": 1.3}},
+        "fields": {"dietary_fiber": {"before": None, "after": 1.3}},
     }
-    assert "fiber: 1.3" in path.read_text()
+    assert "dietary_fiber: 1.3" in path.read_text()
 
 
 def test_force_reports_a_nutrient_the_database_stopped_carrying(
@@ -203,10 +211,10 @@ def test_force_reports_a_nutrient_the_database_stopped_carrying(
     assert changed["changes"][1] == {
         "ref": "coles:2",
         "name": "Passata",
-        "fields": {"fiber": {"before": 1.3, "after": None}},
+        "fields": {"dietary_fiber": {"before": 1.3, "after": None}},
     }
-    assert "fiber" not in path.read_text()
-    assert "fiber" not in changed["macros"]["total"]
+    assert "dietary_fiber" not in path.read_text()
+    assert "dietary_fiber" not in changed["macros"]["total"]
 
 
 def test_resolve_refuses_and_writes_nothing_when_a_reference_misses(
@@ -383,40 +391,47 @@ def test_search_emits_the_shared_candidate_record(tmp_path) -> None:
     assert record["kind"] == "recipe"
     assert record["id"] == "grilled chicken"
     assert record["complete"] is True
+    # The canonical spelling, which is the shared contract eatout and mealplan
+    # also emit: one merged stream cannot hold two names for carbohydrate.
     assert record["per_serving"] == {
         "kcal": 330.0,
         "protein": 62.0,
         "fat": 7.2,
-        "carbs": 0.0,
+        "carbohydrates": 0.0,
     }
+    # One copy of the figures. `detail.total` is a different number.
+    assert "per_serving" not in record["detail"]
     assert record["detail"]["servings"] == 1
     assert record["detail"]["path"] == str(tmp_path / "chicken.yaml")
     assert found["skipped_incomplete"] == []
 
 
 def test_search_publishes_every_nutrient_it_can_total(tmp_path) -> None:
-    """The shared record's keys are agentcli's four, so fibre lives in detail.
+    """The shared record carries whatever this recipe resolved, not four keys.
 
     Per serving and not only as a total: an agent told to look for fibre and
     handed nothing but a total divides it by `servings` itself, which is the
     hand-arithmetic the README forbids.
     """
     author(tmp_path, "pizza.yaml", PIZZA_YAML)
-    resolve_recipe(tmp_path, "Sourdough Pizza", lookup=FIBROUS)
+    resolve_recipe(tmp_path, "Sourdough Pizza", lookup=LABELLED)
 
     found = data_of(invoke(main, ["search", "--dir", str(tmp_path), "--json"]))
     [record] = found["candidates"]
 
-    assert "fiber" not in record["per_serving"]
-    assert record["detail"]["per_serving"]["fiber"] == 5.4
-    assert record["detail"]["total"]["fiber"] == 10.8
+    assert record["per_serving"]["dietary_fiber"] == 5.4
+    assert record["per_serving"]["sodium"] == 1375.0
+    assert record["detail"]["total"]["dietary_fiber"] == 10.8
+    # More than the required four, and still a full set.
+    assert record["complete"] is True
+    # No ingredient stated sugar, so neither figure offers one.
+    assert "sugar" not in record["per_serving"]
     assert "sugar" not in record["detail"]["total"]
-    assert "sugar" not in record["detail"]["per_serving"]
 
     # And the ranked list a person reads, which must not hide what `show`
     # prints: the same figure, from the same key.
     listed = invoke(main, ["search", "--dir", str(tmp_path)])
-    assert "fiber 5.4" in listed.output
+    assert "dietary_fiber 5.4" in listed.output
 
 
 def test_search_filters_on_both_macros(tmp_path) -> None:

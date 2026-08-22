@@ -81,19 +81,20 @@ NUTRIENTS
   per-100g snapshot. The reference alone rots when a retailer renumbers its
   catalogue; the snapshot alone cannot be refreshed.
 
-  A snapshot always carries kcal, protein, fat and carbs, and carries fiber
-  and sugar when the product record states them. An optional nutrient the
-  record did not state is absent, never 0 and never null.
+  A snapshot always carries kcal, protein, fat and carbohydrates, and carries
+  dietary_fiber, sodium and sugar when the product record states them. Those
+  are the canonical names of the vocabulary these tools share, so read
+  carbohydrates and dietary_fiber, not carbs or fiber. An optional nutrient
+  the record did not state is absent, never 0 and never null.
 
   Totals are all-or-nothing per nutrient: total and per_serving report a
   nutrient only when every ingredient supplied it, and otherwise omit it. A
   partial fibre total silently under-reports, which is worse than none, and an
-  absent key is how a caller sees that. complete: true means the four required macros resolved and
-  nothing more, so a question about fibre is answered by looking for fiber in
-  the per-serving figures. show, resolve and fit publish those as
-  macros.per_serving; a search record publishes them as detail.per_serving,
-  because its top-level per_serving is the shared shape and always carries
-  exactly the four macros.
+  absent key is how a caller sees that. complete: true means the four required
+  macros resolved and nothing more, so a question about fibre is answered by
+  looking for dietary_fiber in the per-serving figures. show, resolve and fit
+  publish those as macros.per_serving; a search record publishes them as its
+  top-level per_serving, in the same canonical names.
 
 INCOMPLETE RECIPES
   An ingredient with no macro snapshot is reported by name. No total, filter
@@ -112,21 +113,21 @@ SEARCH
   by name, so a merged list is ordered the same way whoever produced it:
 
     {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
-     "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbs":0},
+     "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbohydrates":0},
      "complete":true,"detail":{"servings":2,"ingredients":[...],
-     "total":{...},"per_serving":{...},"path":"..."}}
+     "total":{...},"path":"..."}}
 
   `id` is the recipe's identity key, which show, resolve, fit and share all
   accept as a name. Everything recipe-specific is under `detail`, which
-  nothing shared reads: detail.total and detail.per_serving carry every
-  nutrient the recipe can report. Matching nothing is exit 0 with
-  an empty list. --limit 0 means no limit.
+  nothing shared reads. Matching nothing is exit 0 with an empty list.
+  --limit 0 means no limit.
 
-  The top-level per_serving is the shared record's and is always exactly the
-  four macros, because agentcli defines that shape and an orchestrator ranks
-  on it. The printed list is not bound by it and shows every nutrient, the
-  same figures show prints, so a person reading the ranked list is never left
-  dividing a total by servings.
+  The top-level per_serving is the shared record's and carries every nutrient
+  this recipe could total, in the canonical names, so eatout's records and
+  these can be merged and ranked as one list. complete says whether the four
+  required macros are among them and nothing about the rest. detail.total is
+  the whole recipe rather than one serving, which is the only figure per_serving
+  does not already give.
 
 FIT
   One factor scales every amount. It never substitutes an ingredient or
@@ -147,7 +148,8 @@ SHARE URLS
     {"v":1,"n":"Name","s":2,"t":"notes",
      "i":[["Ingredient",150,318,7.8,10.6,45]]}
 
-  i entries are [name, grams, kcal, protein, fat, carbs], per 100 g like
+  i entries are [name, grams, kcal, protein, fat, carbohydrates], per 100 g
+  like
   everything else. n and t are omitted when empty, s when it is 1. Optional
   nutrients are deliberately not carried: plate owns this format, the payload
   is bounded by QR capacity, and the viewer displays nothing but the four.

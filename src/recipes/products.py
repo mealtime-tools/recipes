@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+from nutrition.energy import kcal_from_kj
 from pantry import data as pantry_data
 from pantry.local import Local
 from pantry.store import Store
@@ -26,9 +27,6 @@ from recipes.models import (
     Product,
     ProductLookup,
 )
-
-# kJ per kcal, for records that carry only the SI figure.
-KJ_PER_KCAL = 4.184
 
 
 class ProductError(Exception):
@@ -53,7 +51,7 @@ def _kcal(record: dict) -> float:
         return float(record["kcal"])
 
     if record.get("kj") is not None:
-        return float(record["kj"]) / KJ_PER_KCAL
+        return kcal_from_kj(float(record["kj"]))
 
     raise ProductError("record carries no energy value")
 
