@@ -86,10 +86,9 @@ NUTRIENTS
   record did not state is absent, never 0 and never null.
 
   Totals are all-or-nothing per nutrient: total and per_serving report a
-  nutrient only when every ingredient supplied it, and otherwise omit it and
-  name the ingredients that lacked it under macros.missing, the same shape
-  `unresolved` uses. A partial fibre total silently under-reports, which is
-  worse than none. complete: true means the four required macros resolved and
+  nutrient only when every ingredient supplied it, and otherwise omit it. A
+  partial fibre total silently under-reports, which is worse than none, and an
+  absent key is how a caller sees that. complete: true means the four required macros resolved and
   nothing more, so a question about fibre is answered by looking for fiber in
   the per-serving figures. show, resolve and fit publish those as
   macros.per_serving; a search record publishes them as detail.per_serving,
@@ -115,13 +114,12 @@ SEARCH
     {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
      "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbs":0},
      "complete":true,"detail":{"servings":2,"ingredients":[...],
-     "total":{...},"per_serving":{...},"missing":{},"path":"..."}}
+     "total":{...},"per_serving":{...},"path":"..."}}
 
   `id` is the recipe's identity key, which show, resolve, fit and share all
   accept as a name. Everything recipe-specific is under `detail`, which
   nothing shared reads: detail.total and detail.per_serving carry every
-  nutrient the recipe can report, and detail.missing names the ingredients
-  behind any nutrient neither of them could. Matching nothing is exit 0 with
+  nutrient the recipe can report. Matching nothing is exit 0 with
   an empty list. --limit 0 means no limit.
 
   The top-level per_serving is the shared record's and is always exactly the

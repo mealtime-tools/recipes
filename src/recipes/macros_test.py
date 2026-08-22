@@ -114,16 +114,14 @@ def test_a_nutrient_every_ingredient_carries_is_totalled() -> None:
     # 250 g at 0.2/100 g plus 10 g at 17/100 g is 2.2 g of fibre.
     assert macros.total["fiber"] == 2.2
     assert macros.per_serving["fiber"] == 1.1
-    assert "fiber" not in macros.missing
 
 
-def test_a_nutrient_one_ingredient_lacks_is_omitted_and_named() -> None:
+def test_a_nutrient_one_ingredient_lacks_is_omitted() -> None:
     """A partial fibre total under-reports, so there is no partial total."""
     macros = recipe_macros(soup())
 
     assert "sugar" not in macros.total
     assert "sugar" not in macros.per_serving
-    assert macros.missing == {"sugar": ["afcd:F004193: no sugar"]}
 
 
 def test_the_four_macros_are_reported_whatever_else_is_missing() -> None:
@@ -131,7 +129,3 @@ def test_the_four_macros_are_reported_whatever_else_is_missing() -> None:
     macros = recipe_macros(chicken())
 
     assert set(macros.total) == {"kcal", "protein", "fat", "carbs"}
-    assert macros.missing == {
-        "fiber": ["coles:1: no fiber"],
-        "sugar": ["coles:1: no sugar"],
-    }

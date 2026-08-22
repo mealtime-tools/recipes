@@ -169,13 +169,8 @@ def test_totals_carry_a_nutrient_every_ingredient_supplied(tmp_path) -> None:
     assert "fiber 10.8" in shown.output
     # `complete` still means the four required macros, and says nothing more.
     assert resolved["complete"] is True
-    assert resolved["macros"]["missing"] == {
-        "sugar": [
-            "coles:1: no sugar",
-            "coles:2: no sugar",
-            "coles:3: no sugar",
-        ]
-    }
+    # No ingredient stated sugar, so no sugar total is offered at all.
+    assert "sugar" not in resolved["macros"]["total"]
 
 
 def test_force_reports_a_newly_available_nutrient(tmp_path) -> None:
@@ -415,13 +410,8 @@ def test_search_publishes_every_nutrient_it_can_total(tmp_path) -> None:
     assert "fiber" not in record["per_serving"]
     assert record["detail"]["per_serving"]["fiber"] == 5.4
     assert record["detail"]["total"]["fiber"] == 10.8
-    assert record["detail"]["missing"] == {
-        "sugar": [
-            "coles:1: no sugar",
-            "coles:2: no sugar",
-            "coles:3: no sugar",
-        ]
-    }
+    assert "sugar" not in record["detail"]["total"]
+    assert "sugar" not in record["detail"]["per_serving"]
 
     # And the ranked list a person reads, which must not hide what `show`
     # prints: the same figure, from the same key.

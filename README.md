@@ -96,10 +96,8 @@ written only when the product record stated them, and are absent — never
 `0`, never `null` — when it did not: a record that never stated its fibre is
 not one stating zero. Totals are **all-or-nothing per nutrient**. `total` and
 `per_serving` report a nutrient only when every ingredient supplied it, and
-otherwise omit it and name the ingredients that lacked it under
-`macros.missing`, the way an unresolvable ingredient is named under
-`unresolved`. A partial fibre total silently under-reports, which is worse
-than no total at all. `complete` still means the four required macros
+otherwise omit it — an absent key is how a caller sees that. A partial fibre
+total silently under-reports, which is worse than no total at all. `complete` still means the four required macros
 resolved and says nothing about the rest, so a caller filtering on fibre reads
 the per-serving keys rather than `complete`. On `search` that means
 `detail.per_serving`: the candidate record's own `per_serving` is agentcli's
