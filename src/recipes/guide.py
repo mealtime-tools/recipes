@@ -91,7 +91,10 @@ NUTRIENTS
   `unresolved` uses. A partial fibre total silently under-reports, which is
   worse than none. complete: true means the four required macros resolved and
   nothing more, so a question about fibre is answered by looking for fiber in
-  per_serving.
+  the per-serving figures. show, resolve and fit publish those as
+  macros.per_serving; a search record publishes them as detail.per_serving,
+  because its top-level per_serving is the shared shape and always carries
+  exactly the four macros.
 
 INCOMPLETE RECIPES
   An ingredient with no macro snapshot is reported by name. No total, filter
@@ -115,8 +118,10 @@ SEARCH
 
   `id` is the recipe's identity key, which show, resolve, fit and share all
   accept as a name. Everything recipe-specific is under `detail`, which
-  nothing shared reads. Matching nothing is exit 0 with an empty list.
-  --limit 0 means no limit.
+  nothing shared reads: detail.total and detail.per_serving carry every
+  nutrient the recipe can report, and detail.missing names the ingredients
+  behind any nutrient neither of them could. Matching nothing is exit 0 with
+  an empty list. --limit 0 means no limit.
 
 FIT
   One factor scales every amount. It never substitutes an ingredient or

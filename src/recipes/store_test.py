@@ -106,6 +106,18 @@ def test_a_hand_written_ingredient_needs_only_a_reference(tmp_path) -> None:
     assert (item.name, item.macros) == (None, None)
 
 
+def test_a_nutrient_that_is_not_a_number_is_refused_at_ingress(
+    tmp_path,
+) -> None:
+    """`.nan` is a readable YAML float that makes every total unreadable."""
+    path = tmp_path / "latte.yaml"
+    store.write(path, latte())
+    path.write_text(path.read_text().replace("fiber: 0.2", "fiber: .nan"))
+
+    with pytest.raises(store.StoreError, match="not finite: fiber"):
+        store.load_recipe(path)
+
+
 def test_an_unknown_source_is_refused_at_ingress(tmp_path) -> None:
     """Refused now, rather than looking like a database outage forever."""
     path = tmp_path / "bowl.yaml"

@@ -6,6 +6,7 @@ from recipes import store
 from recipes.cli import main
 from recipes.codec import decode_payload, recipe_from_payload
 from recipes.macros import recipe_macros
+from recipes.models import MACRO_KEYS
 from recipes.viewer import DEFAULT_VIEWER_URL
 from recipes.conftest import FakeLookup, data_of, failure_of, invoke
 
@@ -305,8 +306,14 @@ def test_share_round_trips_a_whole_recipe(tmp_path, monkeypatch) -> None:
         2,
         NOTES,
     )
+    # Only the four the payload carries. An optional nutrient does not
+    # survive a share link by design, and `resolve` cannot restore it, since
+    # a link's ingredients come back as `manual` and refer to no record.
     per_serving = resolved["macros"]["per_serving"]
-    assert recipe_macros(restored).per_serving == per_serving
+    restored_per_serving = recipe_macros(restored).per_serving
+    assert {key: restored_per_serving[key] for key in MACRO_KEYS} == {
+        key: per_serving[key] for key in MACRO_KEYS
+    }
 
 
 def test_share_falls_back_to_the_deployed_viewer(
@@ -390,6 +397,31 @@ def test_search_emits_the_shared_candidate_record(tmp_path) -> None:
     assert record["detail"]["servings"] == 1
     assert record["detail"]["path"] == str(tmp_path / "chicken.yaml")
     assert found["skipped_incomplete"] == []
+
+
+def test_search_publishes_every_nutrient_it_can_total(tmp_path) -> None:
+    """The shared record's keys are agentcli's four, so fibre lives in detail.
+
+    Per serving and not only as a total: an agent told to look for fibre and
+    handed nothing but a total divides it by `servings` itself, which is the
+    hand-arithmetic the README forbids.
+    """
+    author(tmp_path, "pizza.yaml", PIZZA_YAML)
+    resolve_recipe(tmp_path, "Sourdough Pizza", lookup=FIBROUS)
+
+    found = data_of(invoke(main, ["search", "--dir", str(tmp_path), "--json"]))
+    [record] = found["candidates"]
+
+    assert "fiber" not in record["per_serving"]
+    assert record["detail"]["per_serving"]["fiber"] == 5.4
+    assert record["detail"]["total"]["fiber"] == 10.8
+    assert record["detail"]["missing"] == {
+        "sugar": [
+            "coles:1: no sugar",
+            "coles:2: no sugar",
+            "coles:3: no sugar",
+        ]
+    }
 
 
 def test_search_filters_on_both_macros(tmp_path) -> None:

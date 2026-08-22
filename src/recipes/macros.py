@@ -83,13 +83,20 @@ def missing_nutrients(recipe: Recipe) -> dict[str, list[str]]:
     The same shape as `unresolved`, one level down: a nutrient only three of
     six ingredients state cannot be totalled, and the useful answer is which
     three, not a number that quietly under-reports the recipe.
+
+    Read off `as_dict`, which is the one definition of what a snapshot states.
+    Asking the field directly would be a second rule that has to agree with
+    the first, and a total summing a key this said was there is a `KeyError`.
     """
+    stated = [
+        (item.ref, item.macros.as_dict() if item.macros else {})
+        for item in recipe.ingredients
+    ]
+
     missing: dict[str, list[str]] = {}
     for key in OPTIONAL_NUTRIENT_KEYS:
         absent = [
-            f"{item.ref}: no {key}"
-            for item in recipe.ingredients
-            if item.macros is None or getattr(item.macros, key) is None
+            f"{ref}: no {key}" for ref, values in stated if key not in values
         ]
         if absent:
             missing[key] = absent

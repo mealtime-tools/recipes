@@ -60,6 +60,44 @@ def test_recipe_encodes_to_the_pinned_payload() -> None:
     assert encode_payload(payload_of(recipe)) == case["encoded"]
 
 
+def test_an_optional_nutrient_never_widens_the_payload() -> None:
+    """Plate owns this format and a QR code pays for every field once per
+    ingredient, so a snapshot carrying fibre encodes to the same six-element
+    row as one without it. Pinned against the vector rather than a length:
+    an extra key anywhere in the payload has to fail this too.
+
+    The cost is stated out loud by the last assertion. A share link cannot
+    carry fibre home, and `resolve` cannot restore it, because a link's
+    ingredients come back as `manual` and refer to no record.
+    """
+    case = next(c for c in VECTORS["cases"] if c["label"] == "minimal")
+    recipe = Recipe(
+        name="Toast",
+        ingredients=[
+            Ingredient(
+                source="coles",
+                id="1",
+                grams=60,
+                name="Sourdough",
+                macros=Macros(
+                    kcal=258.0,
+                    protein=9.1,
+                    fat=2.1,
+                    carbs=47.5,
+                    fiber=2.9,
+                    sugar=1.4,
+                ),
+            )
+        ],
+    )
+
+    assert payload_of(recipe) == case["payload"]
+    assert encode_payload(payload_of(recipe)) == case["encoded"]
+
+    restored = recipe_from_payload(decode_payload(case["encoded"]))
+    assert restored.ingredients[0].macros.fiber is None
+
+
 def test_share_url_round_trips_a_whole_recipe() -> None:
     recipe = Recipe(
         name="Sourdough Pizza",

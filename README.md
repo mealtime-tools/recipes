@@ -100,8 +100,10 @@ otherwise omit it and name the ingredients that lacked it under
 `macros.missing`, the way an unresolvable ingredient is named under
 `unresolved`. A partial fibre total silently under-reports, which is worse
 than no total at all. `complete` still means the four required macros
-resolved and says nothing about the rest, so a caller filtering on fibre
-reads the keys of `per_serving` rather than `complete`.
+resolved and says nothing about the rest, so a caller filtering on fibre reads
+the per-serving keys rather than `complete`. On `search` that means
+`detail.per_serving`: the candidate record's own `per_serving` is agentcli's
+shared shape and always carries exactly the four macros.
 
 ## Development
 

@@ -20,6 +20,7 @@ import hashlib
 import os
 import re
 from dataclasses import dataclass
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +119,13 @@ def _macros_from(raw: Any, ref: str) -> Macros | None:
     for key in OPTIONAL_NUTRIENT_KEYS:
         if raw.get(key) is not None:
             values[key] = float(raw[key])
+
+    # `.nan` and `.inf` are readable YAML floats. Either one totals to itself
+    # and then serializes to a token no JSON reader accepts, so one field of
+    # one ingredient makes every command's output unreadable.
+    unusable = [key for key, value in values.items() if not isfinite(value)]
+    if unusable:
+        raise StoreError(f"{ref}: macros not finite: {', '.join(unusable)}")
 
     return Macros(**values)
 

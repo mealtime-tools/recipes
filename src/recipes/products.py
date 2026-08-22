@@ -11,6 +11,7 @@ changes. `resolve_lookup` returns its local product source instead of
 
 import json
 import os
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +71,13 @@ def product_from_record(record: dict) -> Product:
     for field in OPTIONAL_NUTRIENT_KEYS:
         if record.get(field) is not None:
             values[field] = float(record[field])
+
+    # `NaN` and `Infinity` are readable JSON. Either one totals to itself and
+    # then serializes to a token no JSON reader accepts, so a whole recipe
+    # becomes unreadable because of one field of one record.
+    for field, value in values.items():
+        if not isfinite(value):
+            raise ProductError(f"record has an unusable {field}: {value}")
 
     return Product(
         name=str(record.get("name") or ""),

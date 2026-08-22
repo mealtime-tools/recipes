@@ -73,6 +73,14 @@ def _intent_only(raw: dict) -> dict:
 
     An ingredient with no reference is a manual entry: its macros are the only
     ones that exist, and they are kept.
+
+    KNOWN LOSS: kept verbatim means kept as sent. Plate's editor truncates
+    macros to the four it displays, so a manual ingredient whose YAML was
+    hand-written with a fibre figure loses it on a save through the editor.
+    A referenced ingredient does not: its macros are dropped here and re-read
+    from the record. Not repaired here because repairing it means merging the
+    client's macros with the stored ones, and a client that meant to change a
+    figure is indistinguishable from one that never had it. See issue #4.
     """
     items = raw.get("ingredients")
     if not isinstance(items, list):

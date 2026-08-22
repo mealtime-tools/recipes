@@ -89,15 +89,17 @@ contain a colon.
 {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
  "per_serving":{"kcal":165.0,"protein":31.0,"fat":3.6,"carbs":0.0},
  "complete":true,"detail":{"servings":2,"tags":["dinner"],"notes":"...",
- "ingredients":[...],"total":{...},"unresolved":[],"missing":{},
- "path":"/…/bowl.yaml"}}
+ "ingredients":[...],"total":{...},"per_serving":{...},"unresolved":[],
+ "missing":{},"path":"/…/bowl.yaml"}}
 ```
 
 Ranked by protein per 100 kcal, ties by name, so a list merged with eatout's
 is ordered the same way whoever produced it. Everything recipe-specific is
-under `detail`, which nothing shared reads. `id` is the recipe's identity key
-and is accepted as the `<name>` argument of `show`, `resolve`, `fit` and
-`share`; `detail.path` is the file to edit.
+under `detail`, which nothing shared reads — including `detail.per_serving`,
+which carries every nutrient the recipe can report, where the top-level
+`per_serving` is fixed at agentcli's four macros. `id` is the recipe's
+identity key and is accepted as the `<name>` argument of `show`, `resolve`,
+`fit` and `share`; `detail.path` is the file to edit.
 
 Matching nothing is exit `0` with `candidates: []`. `--limit 0` means no
 limit. Recipes whose macros cannot be totalled are never candidates and are
@@ -124,8 +126,8 @@ downstream and cannot be told from a real one.
 
 `total` and `per_serving` report a nutrient only when **every** ingredient
 supplied it. A nutrient one ingredient lacks is omitted from both and the
-ingredients that lacked it are named under `macros.missing` (under
-`detail.missing` in a `search` record), the same shape `unresolved` uses:
+ingredients that lacked it are named under `macros.missing`, the same shape
+`unresolved` uses:
 
 ```json
 {"total":{"kcal":1517.0,"protein":66.6,"fat":30.2,"carbs":247.8,"fiber":10.8},
@@ -134,8 +136,16 @@ ingredients that lacked it are named under `macros.missing` (under
 
 A partial fibre total silently under-reports, so there is no partial total.
 `complete: true` means the four required macros resolved and nothing more, so
-to decide whether a recipe can answer a question about fibre, check for
-`fiber` in `per_serving` — not `complete`.
+to decide whether a recipe can answer a question about fibre, look for `fiber`
+in the per-serving figures — not `complete`.
+
+Which figures depends on the command. `show`, `resolve` and `fit` return
+`macros.total`, `macros.per_serving` and `macros.missing`, all of which carry
+every nutrient. A `search` record's top-level `per_serving` is agentcli's
+shared shape and is **always** exactly the four macros, so read
+`detail.per_serving`, `detail.total` and `detail.missing` there instead. Never
+divide a total by `servings` yourself; a per-serving figure is always
+published.
 
 ## Where recipes live
 
