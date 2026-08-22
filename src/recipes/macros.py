@@ -77,22 +77,21 @@ def is_complete(recipe: Recipe) -> bool:
     return bool(recipe.ingredients) and not unresolved(recipe)
 
 
-def missing_nutrients(recipe: Recipe) -> dict[str, list[str]]:
-    """Name, per optional nutrient, every ingredient whose snapshot lacks it.
+def _missing_from(
+    stated: list[tuple[str, dict[str, float]]],
+) -> dict[str, list[str]]:
+    """Name, per optional nutrient, every ingredient that does not state it.
 
     The same shape as `unresolved`, one level down: a nutrient only three of
     six ingredients state cannot be totalled, and the useful answer is which
     three, not a number that quietly under-reports the recipe.
 
-    Read off `as_dict`, which is the one definition of what a snapshot states.
-    Asking the field directly would be a second rule that has to agree with
-    the first, and a total summing a key this said was there is a `KeyError`.
+    Takes the nutrients each ingredient states rather than the ingredients,
+    so the caller can hand over the very dicts it is about to sum. Asking a
+    snapshot's fields here instead would be a second rule that has to agree
+    with `as_dict`, and the failure when they disagree is a `KeyError` from a
+    total summing a key this said was there.
     """
-    stated = [
-        (item.ref, item.macros.as_dict() if item.macros else {})
-        for item in recipe.ingredients
-    ]
-
     missing: dict[str, list[str]] = {}
     for key in OPTIONAL_NUTRIENT_KEYS:
         absent = [
@@ -137,12 +136,16 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
 
     # All or nothing per nutrient: one ingredient that never stated its fibre
     # makes a fibre total an under-report, which is worse than no total.
-    missing = missing_nutrients(recipe)
+    # Scaled once, then both decided and summed from the same dicts, so what
+    # counts as stated and what gets added up cannot come apart.
+    scaled = [
+        (item.ref, ingredient_macros(item)) for item in recipe.ingredients
+    ]
+    missing = _missing_from(scaled)
     totals = {key: 0.0 for key in NUTRIENT_KEYS if key not in missing}
-    for item in recipe.ingredients:
-        scaled = ingredient_macros(item)
+    for _, values in scaled:
         for key in totals:
-            totals[key] += scaled[key]
+            totals[key] += values[key]
 
     return RecipeMacros(
         total={key: round_js(value) for key, value in totals.items()},

@@ -130,22 +130,33 @@ def test_search_rows_carry_the_four_macros_only(tmp_path) -> None:
     assert set(row["macros"]) == {"kcal", "protein", "fat", "carbs"}
 
 
-def test_a_record_whose_nutrient_is_not_a_number_is_refused(tmp_path) -> None:
-    """`NaN` is readable JSON. It totals to `NaN` and serializes to nothing."""
-    lookup = shard(
-        tmp_path,
-        {
-            "id": "6",
-            "name": "Broken",
-            "kcal": 100.0,
-            "protein": 1.0,
-            "fat": 1.0,
-            "carbs": 1.0,
-            "fiber": float("nan"),
-        },
-    )
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        # The optional nutrient, in both spellings a total cannot survive.
+        ("fiber", float("nan")),
+        ("fiber", float("inf")),
+        # And a required macro: the rule is about every nutrient, not the two
+        # this file learned to read most recently.
+        ("kcal", float("nan")),
+        ("protein", float("-inf")),
+    ],
+)
+def test_a_record_whose_nutrient_is_not_finite_is_refused(
+    tmp_path, field: str, value: float
+) -> None:
+    """`NaN` and `Infinity` are readable JSON that no total survives."""
+    record = {
+        "id": "6",
+        "name": "Broken",
+        "kcal": 100.0,
+        "protein": 1.0,
+        "fat": 1.0,
+        "carbs": 1.0,
+    }
+    lookup = shard(tmp_path, {**record, field: value})
 
-    with pytest.raises(ProductError, match="fiber"):
+    with pytest.raises(ProductError, match=f"unusable {field}"):
         lookup.lookup("coles", "6")
 
 

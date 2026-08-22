@@ -423,6 +423,11 @@ def test_search_publishes_every_nutrient_it_can_total(tmp_path) -> None:
         ]
     }
 
+    # And the ranked list a person reads, which must not hide what `show`
+    # prints: the same figure, from the same key.
+    listed = invoke(main, ["search", "--dir", str(tmp_path)])
+    assert "fiber 5.4" in listed.output
+
 
 def test_search_filters_on_both_macros(tmp_path) -> None:
     """Per serving: pizza is 758.5 kcal and 30.19 g of protein."""

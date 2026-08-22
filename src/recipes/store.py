@@ -120,9 +120,11 @@ def _macros_from(raw: Any, ref: str) -> Macros | None:
         if raw.get(key) is not None:
             values[key] = float(raw[key])
 
-    # `.nan` and `.inf` are readable YAML floats. Either one totals to itself
-    # and then serializes to a token no JSON reader accepts, so one field of
-    # one ingredient makes every command's output unreadable.
+    # `.nan` and `.inf` are readable YAML floats, and every total goes through
+    # `round_js`, which raises `ValueError` on the first and `OverflowError` on
+    # the second. Unguarded, one field of one ingredient is an unhandled
+    # traceback from `show`; refused here, it is a refusal that names the
+    # ingredient and the key.
     unusable = [key for key, value in values.items() if not isfinite(value)]
     if unusable:
         raise StoreError(f"{ref}: macros not finite: {', '.join(unusable)}")

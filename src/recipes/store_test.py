@@ -106,15 +106,27 @@ def test_a_hand_written_ingredient_needs_only_a_reference(tmp_path) -> None:
     assert (item.name, item.macros) == (None, None)
 
 
-def test_a_nutrient_that_is_not_a_number_is_refused_at_ingress(
-    tmp_path,
+@pytest.mark.parametrize(
+    ("stated", "broken", "named"),
+    [
+        # The optional nutrient, in both spellings a total cannot survive.
+        ("fiber: 0.2", "fiber: .nan", "fiber"),
+        ("fiber: 0.2", "fiber: .inf", "fiber"),
+        # And a required macro: the rule is about every nutrient, not the two
+        # this file learned to read most recently.
+        ("kcal: 42.0", "kcal: .nan", "kcal"),
+        ("kcal: 42.0", "kcal: -.inf", "kcal"),
+    ],
+)
+def test_a_nutrient_that_is_not_finite_is_refused_at_ingress(
+    tmp_path, stated: str, broken: str, named: str
 ) -> None:
-    """`.nan` is a readable YAML float that makes every total unreadable."""
+    """`.nan` and `.inf` are readable YAML floats that no total survives."""
     path = tmp_path / "latte.yaml"
     store.write(path, latte())
-    path.write_text(path.read_text().replace("fiber: 0.2", "fiber: .nan"))
+    path.write_text(path.read_text().replace(stated, broken))
 
-    with pytest.raises(store.StoreError, match="not finite: fiber"):
+    with pytest.raises(store.StoreError, match=f"not finite: {named}"):
         store.load_recipe(path)
 
 

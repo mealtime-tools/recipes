@@ -78,9 +78,14 @@ def _intent_only(raw: dict) -> dict:
     macros to the four it displays, so a manual ingredient whose YAML was
     hand-written with a fibre figure loses it on a save through the editor.
     A referenced ingredient does not: its macros are dropped here and re-read
-    from the record. Not repaired here because repairing it means merging the
-    client's macros with the stored ones, and a client that meant to change a
-    figure is indistinguishable from one that never had it. See issue #4.
+    from the record. Not repaired here because *merging* the client's macros
+    with the stored ones picks a winner, and a client that meant to change a
+    figure is indistinguishable from one that never carried it. Refusing picks
+    no winner and is the likelier fix: `do_PUT` already holds the stored
+    recipe, so it could reject a manual ingredient whose macros omit a key the
+    stored snapshot states, the way a non-finite figure is rejected at ingress.
+    See issue #4. The behaviour below is pinned by a test, so widening it from
+    manual to referenced ingredients cannot happen quietly.
     """
     items = raw.get("ingredients")
     if not isinstance(items, list):

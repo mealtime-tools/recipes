@@ -361,3 +361,35 @@ def test_a_put_does_not_trust_macros_for_a_referenced_ingredient() -> None:
     assert cleaned["ingredients"][1]["macros"]["fat"] == 2.0
     # The original is untouched.
     assert "macros" in posted["ingredients"][0]
+
+
+def test_a_put_re_reads_a_referenced_nutrient_and_keeps_a_manual_one_as_sent() -> (
+    None
+):
+    """Pins the loss in issue #4, so it cannot widen without a red test.
+
+    Plate's editor truncates macros to the four it displays. A referenced
+    ingredient pays nothing for that: its macros are dropped here and re-read
+    from the record, fibre included. A manual one has no record to re-read, so
+    the truncated dict is exactly what gets stored and a hand-written fibre
+    figure is gone. That asymmetry is the whole of #4, and the day a
+    referenced ingredient starts keeping what a client sent, this fails.
+    """
+    from recipes.server import _intent_only
+
+    four = {"kcal": 100.0, "protein": 1.0, "fat": 2.0, "carbs": 3.0}
+    posted = {
+        "name": "Bowl",
+        "ingredients": [
+            {"source": "coles", "id": "1047", "grams": 200, "macros": four},
+            {"grams": 50, "name": "Hand-written", "macros": four},
+        ],
+    }
+
+    cleaned = _intent_only(posted)
+
+    # Nothing of the client's survives for the referenced one, so a stored
+    # `fiber` is restored by resolution rather than overwritten by this.
+    assert "macros" not in cleaned["ingredients"][0]
+    # The manual one keeps what was sent, and what was sent has no fibre.
+    assert set(cleaned["ingredients"][1]["macros"]) == set(four)

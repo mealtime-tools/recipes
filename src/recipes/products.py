@@ -72,9 +72,10 @@ def product_from_record(record: dict) -> Product:
         if record.get(field) is not None:
             values[field] = float(record[field])
 
-    # `NaN` and `Infinity` are readable JSON. Either one totals to itself and
-    # then serializes to a token no JSON reader accepts, so a whole recipe
-    # becomes unreadable because of one field of one record.
+    # `NaN` and `Infinity` are readable JSON, and every total goes through
+    # `round_js`, which raises `ValueError` on the first and `OverflowError` on
+    # the second. Unguarded, one field of one record is an unhandled traceback
+    # from `resolve`; refused here, it is a refusal that names the field.
     for field, value in values.items():
         if not isfinite(value):
             raise ProductError(f"record has an unusable {field}: {value}")

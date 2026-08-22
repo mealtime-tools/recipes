@@ -114,7 +114,8 @@ SEARCH
 
     {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
      "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbs":0},
-     "complete":true,"detail":{"servings":2,"ingredients":[...],"path":"..."}}
+     "complete":true,"detail":{"servings":2,"ingredients":[...],
+     "total":{...},"per_serving":{...},"missing":{},"path":"..."}}
 
   `id` is the recipe's identity key, which show, resolve, fit and share all
   accept as a name. Everything recipe-specific is under `detail`, which
@@ -122,6 +123,12 @@ SEARCH
   nutrient the recipe can report, and detail.missing names the ingredients
   behind any nutrient neither of them could. Matching nothing is exit 0 with
   an empty list. --limit 0 means no limit.
+
+  The top-level per_serving is the shared record's and is always exactly the
+  four macros, because agentcli defines that shape and an orchestrator ranks
+  on it. The printed list is not bound by it and shows every nutrient, the
+  same figures show prints, so a person reading the ranked list is never left
+  dividing a total by servings.
 
 FIT
   One factor scales every amount. It never substitutes an ingredient or

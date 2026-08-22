@@ -151,7 +151,12 @@ def _human(payload: dict[str, Any]) -> Iterable[str]:
         servings = record["detail"]["servings"]
         plural = "" if servings == 1 else "s"
         yield f"{record['name']}  ({servings} serving{plural})"
-        yield f"  per serving  {macro_summary(record['per_serving'])}"
+        # This recipe's own figures, not the shared record's four: a person
+        # reading the ranked list would otherwise conclude a recipe has no
+        # fibre where `show` prints it, and go and divide a total by hand.
+        yield (
+            f"  per serving  {macro_summary(record['detail']['per_serving'])}"
+        )
 
     for item in payload["skipped_incomplete"]:
         missing = "; ".join(item["unresolved"])
