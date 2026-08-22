@@ -25,9 +25,16 @@ dependencies = ["click-agentcli>=0.1.0",
     "mealtime-plate>=0.1.0", "click>=8.1", "python-dotenv>=1.0",
     "PyYAML>=6.0"]
 
-# Two sibling checkouts rather than releases. `mealtime-nutrition` is not on
-# PyPI yet; `mealtime-pantry` is, but only at the release that still writes
-# `carbs`, and this package reads pantry's records. They have to move together.
+# Two sibling checkouts rather than releases, and CI checks both out beside
+# this one. `mealtime-nutrition` is not on PyPI yet; `mealtime-pantry` is, but
+# only at the release that still writes `carbs`, and this package reads
+# pantry's records. They have to move together.
+#
+# RELEASE BLOCKER: `[tool.uv.sources]` is not written into a wheel, so a release
+# cut from here would declare both from PyPI and find one missing and one too
+# old. Both entries have to become version pins first, and the order is
+# nutrition, then pantry, then recipes -- each one reads the names the one
+# before it writes, so this package is released last.
 [tool.uv.sources]
 mealtime-nutrition = { path = "../nutrition", editable = true }
 mealtime-pantry = { path = "../pantry", editable = true }

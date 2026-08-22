@@ -15,10 +15,14 @@ from nutrition import energy, vocabulary
 PRODUCT_SOURCES = ("coles", "woolworths", "afcd", "usda", "manual")
 
 # The four a snapshot must carry to be usable for arithmetic at all: the energy
-# everything compares, and the three macros the Atwater sum is made of. Which
-# four is this package's business; what they are called is not, so the names and
-# their order come from the shared vocabulary.
-MACRO_KEYS = ("kcal", *energy.KCAL_PER_GRAM)
+# everything compares, and the three macros every panel states. Which four is
+# this package's business; what they are called is not, so the names and their
+# order come from the shared vocabulary.
+#
+# `energy.REQUIRED` and not `energy.KCAL_PER_GRAM`: alcohol has an Atwater
+# factor and no label outside the drinks aisle states it, so requiring it would
+# make every recipe incomplete.
+MACRO_KEYS = ("kcal", *energy.REQUIRED)
 
 # Carried when the source record has them and absent when it does not, so a
 # record that never stated its fibre cannot be read as one stating zero. Named
