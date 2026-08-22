@@ -27,7 +27,9 @@ def pizza() -> Recipe:
                 id="0042",
                 grams=475,
                 name="Pizza Dough",
-                macros=Macros(kcal=268.0, protein=8.9, fat=3.1, carbs=49.2),
+                macros=Macros(
+                    kcal=268.0, protein=8.9, fat=3.1, carbohydrates=49.2
+                ),
             ),
             Ingredient(source="manual", id="Passata", grams=100),
         ],
@@ -66,7 +68,11 @@ def latte() -> Recipe:
                 grams=250,
                 name="Soy Milk",
                 macros=Macros(
-                    kcal=42.0, protein=3.0, fat=1.6, carbs=3.3, fiber=0.2
+                    kcal=42.0,
+                    protein=3.0,
+                    fat=1.6,
+                    carbohydrates=3.3,
+                    dietary_fiber=0.2,
                 ),
             )
         ],
@@ -78,7 +84,7 @@ def test_an_optional_nutrient_round_trips(tmp_path) -> None:
     path = tmp_path / "latte.yaml"
     store.write(path, latte())
 
-    assert "fiber: 0.2" in path.read_text()
+    assert "dietary_fiber: 0.2" in path.read_text()
     assert store.load_recipe(path) == latte()
 
 
@@ -110,8 +116,8 @@ def test_a_hand_written_ingredient_needs_only_a_reference(tmp_path) -> None:
     ("stated", "broken", "named"),
     [
         # The optional nutrient, in both spellings a total cannot survive.
-        ("fiber: 0.2", "fiber: .nan", "fiber"),
-        ("fiber: 0.2", "fiber: .inf", "fiber"),
+        ("dietary_fiber: 0.2", "dietary_fiber: .nan", "dietary_fiber"),
+        ("dietary_fiber: 0.2", "dietary_fiber: .inf", "dietary_fiber"),
         # And a required macro: the rule is about every nutrient, not the two
         # this file learned to read most recently.
         ("kcal: 42.0", "kcal: .nan", "kcal"),

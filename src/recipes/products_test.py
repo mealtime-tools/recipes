@@ -27,7 +27,7 @@ def test_the_filename_supplies_the_source_and_kj_supplies_kcal(
             "name": "Rolled Oats",
             "kj": 1569.0,
             "fat": 8.0,
-            "carbs": 60.0,
+            "carbohydrates": 60.0,
             "protein": 13.0,
         },
     )
@@ -67,22 +67,22 @@ def test_a_record_that_states_fibre_and_sugar_keeps_them(tmp_path) -> None:
             "kcal": 42.0,
             "protein": 3.0,
             "fat": 1.6,
-            "carbs": 3.3,
-            "fiber": 0.2,
+            "carbohydrates": 3.3,
+            "dietary_fiber": 0.2,
             "sugar": 1.0,
         },
     )
 
     product = lookup.lookup("coles", "3")
 
-    assert (product.fiber, product.sugar) == (0.2, 1.0)
-    assert product.macros().as_dict()["fiber"] == 0.2
+    assert (product.dietary_fiber, product.sugar) == (0.2, 1.0)
+    assert product.macros().as_dict()["dietary_fiber"] == 0.2
 
 
 def test_a_stated_zero_survives_and_an_unstated_nutrient_stays_unstated(
     tmp_path,
 ) -> None:
-    """The common case in the shipped shards: `fiber: 0` is a measurement.
+    """The common case in the shipped shards: `dietary_fiber: 0` is a measurement.
 
     Two in five AFCD records state a zero fibre. Reading them as unstated
     would throw away most of what this seam was widened to carry, and reading
@@ -96,16 +96,16 @@ def test_a_stated_zero_survives_and_an_unstated_nutrient_stays_unstated(
             "kcal": 316.0,
             "protein": 0.2,
             "fat": 0.0,
-            "carbs": 78.0,
-            "fiber": 0,
+            "carbohydrates": 78.0,
+            "dietary_fiber": 0,
         },
     )
 
     product = lookup.lookup("coles", "4")
 
-    assert product.fiber == 0.0
+    assert product.dietary_fiber == 0.0
     assert product.sugar is None
-    assert "fiber" in product.macros().as_dict()
+    assert "dietary_fiber" in product.macros().as_dict()
     assert "sugar" not in product.macros().as_dict()
 
 
@@ -120,22 +120,22 @@ def test_search_rows_carry_the_four_macros_only(tmp_path) -> None:
             "kcal": 375.0,
             "protein": 13.0,
             "fat": 8.0,
-            "carbs": 60.0,
-            "fiber": 10.1,
+            "carbohydrates": 60.0,
+            "dietary_fiber": 10.1,
         },
     )
 
     [row] = lookup.search("oats")
 
-    assert set(row["macros"]) == {"kcal", "protein", "fat", "carbs"}
+    assert set(row["macros"]) == {"kcal", "protein", "fat", "carbohydrates"}
 
 
 @pytest.mark.parametrize(
     ("field", "value"),
     [
         # The optional nutrient, in both spellings a total cannot survive.
-        ("fiber", float("nan")),
-        ("fiber", float("inf")),
+        ("dietary_fiber", float("nan")),
+        ("dietary_fiber", float("inf")),
         # And a required macro: the rule is about every nutrient, not the two
         # this file learned to read most recently.
         ("kcal", float("nan")),
@@ -152,7 +152,7 @@ def test_a_record_whose_nutrient_is_not_finite_is_refused(
         "kcal": 100.0,
         "protein": 1.0,
         "fat": 1.0,
-        "carbs": 1.0,
+        "carbohydrates": 1.0,
     }
     lookup = shard(tmp_path, {**record, field: value})
 
@@ -175,7 +175,7 @@ def test_default_lookup_combines_owned_and_user_shards(
                 "kcal": 375.0,
                 "protein": 13.0,
                 "fat": 8.0,
-                "carbs": 60.0,
+                "carbohydrates": 60.0,
             }
         )
         + "\n",
@@ -195,7 +195,7 @@ def test_default_lookup_combines_owned_and_user_shards(
                 "kcal": 367.0,
                 "protein": 33.33,
                 "fat": 3.33,
-                "carbs": 50.0,
+                "carbohydrates": 50.0,
             }
         )
         + "\n",

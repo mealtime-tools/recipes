@@ -37,14 +37,18 @@ def sample_pizza() -> Recipe:
                 id="1",
                 grams=475,
                 name="Pizza Dough",
-                macros=Macros(kcal=268.0, protein=8.9, fat=3.1, carbs=49.2),
+                macros=Macros(
+                    kcal=268.0, protein=8.9, fat=3.1, carbohydrates=49.2
+                ),
             ),
             Ingredient(
                 source="coles",
                 id="2",
                 grams=100,
                 name="Passata",
-                macros=Macros(kcal=34.0, protein=1.6, fat=0.2, carbs=6.4),
+                macros=Macros(
+                    kcal=34.0, protein=1.6, fat=0.2, carbohydrates=6.4
+                ),
             ),
         ],
     )
@@ -336,7 +340,7 @@ def test_a_put_does_not_trust_macros_for_a_referenced_ingredient() -> None:
                     "kcal": 250.0,
                     "protein": 9.0,
                     "fat": 0,
-                    "carbs": 0,
+                    "carbohydrates": 0,
                 },
             },
             {
@@ -346,7 +350,7 @@ def test_a_put_does_not_trust_macros_for_a_referenced_ingredient() -> None:
                     "kcal": 100.0,
                     "protein": 1.0,
                     "fat": 2.0,
-                    "carbs": 3.0,
+                    "carbohydrates": 3.0,
                 },
             },
         ],
@@ -377,7 +381,7 @@ def test_a_put_re_reads_a_referenced_nutrient_and_keeps_a_manual_one_as_sent() -
     """
     from recipes.server import _intent_only
 
-    four = {"kcal": 100.0, "protein": 1.0, "fat": 2.0, "carbs": 3.0}
+    four = {"kcal": 100.0, "protein": 1.0, "fat": 2.0, "carbohydrates": 3.0}
     posted = {
         "name": "Bowl",
         "ingredients": [
@@ -389,7 +393,7 @@ def test_a_put_re_reads_a_referenced_nutrient_and_keeps_a_manual_one_as_sent() -
     cleaned = _intent_only(posted)
 
     # Nothing of the client's survives for the referenced one, so a stored
-    # `fiber` is restored by resolution rather than overwritten by this.
+    # `dietary_fiber` is restored by resolution rather than overwritten by this.
     assert "macros" not in cleaned["ingredients"][0]
     # The manual one keeps what was sent, and what was sent has no fibre.
     assert set(cleaned["ingredients"][1]["macros"]) == set(four)

@@ -51,7 +51,9 @@ def test_recipe_encodes_to_the_pinned_payload() -> None:
                 id="1",
                 grams=60,
                 name="Sourdough",
-                macros=Macros(kcal=258.0, protein=9.1, fat=2.1, carbs=47.5),
+                macros=Macros(
+                    kcal=258.0, protein=9.1, fat=2.1, carbohydrates=47.5
+                ),
             )
         ],
     )
@@ -96,14 +98,19 @@ def test_an_optional_nutrient_never_widens_the_payload() -> None:
                     kcal=kcal,
                     protein=protein,
                     fat=fat,
-                    carbs=carbs,
-                    fiber=1.5 + number,
+                    carbohydrates=carbohydrates,
+                    dietary_fiber=1.5 + number,
                     sugar=0.5 + number,
                 ),
             )
-            for number, (name, grams, kcal, protein, fat, carbs) in enumerate(
-                rows
-            )
+            for number, (
+                name,
+                grams,
+                kcal,
+                protein,
+                fat,
+                carbohydrates,
+            ) in enumerate(rows)
         ],
     )
 
@@ -111,7 +118,7 @@ def test_an_optional_nutrient_never_widens_the_payload() -> None:
     assert encode_payload(payload_of(recipe)) == case["encoded"]
 
     restored = recipe_from_payload(decode_payload(case["encoded"]))
-    assert [item.macros.fiber for item in restored.ingredients] == [
+    assert [item.macros.dietary_fiber for item in restored.ingredients] == [
         None,
         None,
         None,
@@ -129,7 +136,9 @@ def test_share_url_round_trips_a_whole_recipe() -> None:
                 id="42:a",
                 grams=475,
                 name="Pizza Dough",
-                macros=Macros(kcal=268.0, protein=8.9, fat=3.1, carbs=49.2),
+                macros=Macros(
+                    kcal=268.0, protein=8.9, fat=3.1, carbohydrates=49.2
+                ),
             )
         ],
     )

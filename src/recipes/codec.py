@@ -61,7 +61,11 @@ def payload_of(recipe: Recipe) -> dict:
 
 
 def _row_of(item: Ingredient) -> list:
-    """One ingredient as `[name, grams, kcal, protein, fat, carbs]`."""
+    """One ingredient as `[name, grams, kcal, protein, fat, carbohydrates]`.
+
+    Positional, so the canonical rename of `carbs` moves no byte of the wire
+    format: plate reads this and is out of scope.
+    """
     macros = item.macros
     assert macros is not None, "payload_of refuses unresolved ingredients"
 
@@ -71,7 +75,7 @@ def _row_of(item: Ingredient) -> list:
         float(macros.kcal),
         float(macros.protein),
         float(macros.fat),
-        float(macros.carbs),
+        float(macros.carbohydrates),
     ]
 
 
@@ -132,7 +136,7 @@ def recipe_from_payload(payload: dict) -> Recipe:
 
 
 def _ingredient_from_row(row: object) -> Ingredient:
-    """Read `[name, grams, kcal, protein, fat, carbs]`, or refuse it.
+    """Read `[name, grams, kcal, protein, fat, carbohydrates]`, or refuse it.
 
     A short row is refused rather than padded with zeros: an inferred zero
     under-counts every total downstream and cannot be told from a real one.
@@ -141,7 +145,7 @@ def _ingredient_from_row(row: object) -> Ingredient:
         raise ShareUrlError(f"malformed ingredient entry: {row!r}")
 
     try:
-        name, grams, kcal, protein, fat, carbs = (
+        name, grams, kcal, protein, fat, carbohydrates = (
             str(row[0]),
             float(row[1]),
             float(row[2]),
@@ -157,5 +161,10 @@ def _ingredient_from_row(row: object) -> Ingredient:
         id=name,
         grams=grams,
         name=name,
-        macros=Macros(kcal=kcal, protein=protein, fat=fat, carbs=carbs),
+        macros=Macros(
+            kcal=kcal,
+            protein=protein,
+            fat=fat,
+            carbohydrates=carbohydrates,
+        ),
     )

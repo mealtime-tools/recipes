@@ -21,9 +21,16 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = ["click-agentcli>=0.1.0",
-    "mealtime-pantry>=0.1.0",
+    "mealtime-nutrition>=0.1.0", "mealtime-pantry>=0.1.0",
     "mealtime-plate>=0.1.0", "click>=8.1", "python-dotenv>=1.0",
     "PyYAML>=6.0"]
+
+# Two sibling checkouts rather than releases. `mealtime-nutrition` is not on
+# PyPI yet; `mealtime-pantry` is, but only at the release that still writes
+# `carbs`, and this package reads pantry's records. They have to move together.
+[tool.uv.sources]
+mealtime-nutrition = { path = "../nutrition", editable = true }
+mealtime-pantry = { path = "../pantry", editable = true }
 
 [project.urls]
 Homepage = "https://github.com/mealtime-tools/recipes"

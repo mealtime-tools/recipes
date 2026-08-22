@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from nutrition import vocabulary
 
 from recipes.macros import compact_number, parse_servings
 from recipes.models import (
@@ -100,6 +101,29 @@ def path_for(directory: Path, name: str) -> Path:
     return directory / filename_for(name)
 
 
+def _stated(raw: dict, ref: str) -> dict[str, Any]:
+    """One file's snapshot keys under the names this package stores them by.
+
+    A file is written input, by hand or by plate's exporter, so it may spell a
+    nutrient however a label does: `carbs` and `carbohydrates` are one key, and
+    so are `fiber` and `dietary_fibre`. A name the shared vocabulary does not
+    know is refused rather than dropped, because a snapshot silently missing a
+    nutrient reads as a product that never stated it.
+    """
+    stated: dict[str, Any] = {}
+    for written, value in raw.items():
+        try:
+            key = vocabulary.resolve(str(written))
+        except vocabulary.UnknownNutrientError as exc:
+            raise StoreError(f"{ref}: macros carry {written!r}") from exc
+
+        if key in stated:
+            raise StoreError(f"{ref}: macros state {key} twice")
+        stated[key] = value
+
+    return stated
+
+
 def _macros_from(raw: Any, ref: str) -> Macros | None:
     """Read a snapshot, or report its absence. Never infer a zero."""
     if raw is None:
@@ -108,17 +132,18 @@ def _macros_from(raw: Any, ref: str) -> Macros | None:
     if not isinstance(raw, dict):
         raise StoreError(f"{ref}: macros must be a mapping")
 
-    missing = [key for key in MACRO_KEYS if raw.get(key) is None]
+    stated = _stated(raw, ref)
+    missing = [key for key in MACRO_KEYS if stated.get(key) is None]
     if missing:
         raise StoreError(f"{ref}: macros missing {', '.join(missing)}")
 
-    values = {key: float(raw[key]) for key in MACRO_KEYS}
+    values = {key: float(stated[key]) for key in MACRO_KEYS}
 
     # An optional nutrient the file does not state stays unstated, rather
     # than becoming a zero the next total would report as sourced.
     for key in OPTIONAL_NUTRIENT_KEYS:
-        if raw.get(key) is not None:
-            values[key] = float(raw[key])
+        if stated.get(key) is not None:
+            values[key] = float(stated[key])
 
     # `.nan` and `.inf` are readable YAML floats, and every total goes through
     # `round_js`, which raises `ValueError` on the first and `OverflowError` on

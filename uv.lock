@@ -45,18 +45,42 @@ wheels = [
 ]
 
 [[package]]
+name = "mealtime-nutrition"
+version = "0.1.0"
+source = { editable = "../nutrition" }
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.0" }]
+
+[[package]]
 name = "mealtime-pantry"
 version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../pantry" }
 dependencies = [
     { name = "click" },
     { name = "click-agentcli" },
+    { name = "mealtime-nutrition" },
     { name = "python-dotenv" },
     { name = "rapidfuzz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1e/fd/febdbfa21b29b08603f8dca5fd7e1d5212d42859d6a33271cd87435602ab/mealtime_pantry-0.1.0.tar.gz", hash = "sha256:907b007265f42e478ae6ad071123ef844d6587941aeb242ecd8b09362af5165f", size = 125772, upload-time = "2026-08-21T03:28:40.26Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/2e/4d86e0af1e173aa2ab3a5fe02d8d5162defba8d896e65815cd0b44c8a36a/mealtime_pantry-0.1.0-py3-none-any.whl", hash = "sha256:ff1547785fc9e382259f8a8759f04104b8c378d86ef164f4667cca6cdd3ec2cd", size = 120909, upload-time = "2026-08-21T03:28:38.748Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1" },
+    { name = "click-agentcli", specifier = ">=0.1.0" },
+    { name = "mealtime-nutrition", editable = "../nutrition" },
+    { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.44" },
+    { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "rapidfuzz", specifier = ">=3.9" },
+]
+provides-extras = ["browser"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.6" },
 ]
 
 [[package]]
@@ -75,6 +99,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "click-agentcli" },
+    { name = "mealtime-nutrition" },
     { name = "mealtime-pantry" },
     { name = "mealtime-plate" },
     { name = "python-dotenv" },
@@ -91,7 +116,8 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "click-agentcli", specifier = ">=0.1.0" },
-    { name = "mealtime-pantry", specifier = ">=0.1.0" },
+    { name = "mealtime-nutrition", editable = "../nutrition" },
+    { name = "mealtime-pantry", editable = "../pantry" },
     { name = "mealtime-plate", specifier = ">=0.1.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },

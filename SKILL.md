@@ -62,8 +62,11 @@ ingredients:
 
 Then `recipes resolve "Chicken Bowl" --json` fills in each `name` and
 per-100 g `macros` from the product database and writes the file back. A
-snapshot always carries `kcal`, `protein`, `fat` and `carbs`, and also
-`fiber`, `sodium` and `sugar` when the record states them.
+snapshot always carries `kcal`, `protein`, `fat` and `carbohydrates`, and also
+`dietary_fiber`, `sodium` and `sugar` when the record states them. Those are
+the canonical names of the vocabulary these tools share, so read
+`carbohydrates` and `dietary_fiber`. A file you *write* by hand may use any
+spelling a label does — `carbs`, `fibre`, `Dietary Fibre` — and it resolves.
 
 - Each ingredient it filled in is listed under `resolved`.
 - **Idempotent.** An ingredient that already carries macros is left alone, so
@@ -129,20 +132,22 @@ supplied it. A nutrient one ingredient lacks is omitted from both, and its
 absence from the keys is how you know:
 
 ```json
-{"total":{"kcal":1517.0,"protein":66.6,"fat":30.2,"carbs":247.8,"fiber":10.8},
- "per_serving":{...}}
+{"total":{"kcal":1517.0,"protein":66.6,"fat":30.2,"carbohydrates":247.8,
+ "dietary_fiber":10.8},"per_serving":{...}}
 ```
 
 Sugar is absent above because at least one ingredient never stated it.
 
 A partial fibre total silently under-reports, so there is no partial total.
 `complete: true` means the four required macros resolved and nothing more, so
-to decide whether a recipe can answer a question about fibre, look for `fiber`
-in the per-serving figures — not `complete`.
+to decide whether a recipe can answer a question about fibre, look for
+`dietary_fiber` in the per-serving figures — not `complete`.
 
 Which figures depends on the command. `show`, `resolve` and `fit` return
 `macros.total` and `macros.per_serving`, both of which carry every nutrient.
-A `search` record's top-level `per_serving` is agentcli's shared shape and is
+A `search` record's top-level `per_serving` is agentcli's shared shape, which
+fixes both its four keys and their spelling — `carbs` there, `carbohydrates`
+everywhere else — and is
 **always** exactly the four macros, so read `detail.per_serving` and
 `detail.total` there instead. Never
 divide a total by `servings` yourself; a per-serving figure is always
@@ -167,10 +172,10 @@ renumbers its catalogue and is useless offline; the snapshot alone cannot be
 refreshed.
 
 Nutrients are per 100 g everywhere, in the database and in the snapshot.
-Totals scale by `grams / 100` at the last step. `fiber`, `sodium` and `sugar` are
-written only when the source record stated them and are absent otherwise —
-never `0` and never `null`, because a record that never stated its fibre is
-not one stating zero.
+Totals scale by `grams / 100` at the last step. `dietary_fiber`, `sodium` and
+`sugar` are written only when the source record stated them and are absent
+otherwise — never `0` and never `null`, because a record that never stated its
+fibre is not one stating zero.
 
 ## fit
 

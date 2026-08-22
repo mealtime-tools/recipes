@@ -15,7 +15,9 @@ def chicken(grams: float = 200, servings: int = 2) -> Recipe:
                 id="1",
                 grams=grams,
                 name="Chicken breast",
-                macros=Macros(kcal=165.0, protein=31.0, fat=3.6, carbs=0.0),
+                macros=Macros(
+                    kcal=165.0, protein=31.0, fat=3.6, carbohydrates=0.0
+                ),
             )
         ],
     )
@@ -28,7 +30,7 @@ def test_totals_scale_by_grams_and_servings() -> None:
         "kcal": 330.0,
         "protein": 62.0,
         "fat": 7.2,
-        "carbs": 0.0,
+        "carbohydrates": 0.0,
     }
     assert macros.per_serving["kcal"] == 165.0
     assert macros.per_serving["protein"] == 31.0
@@ -62,7 +64,9 @@ def test_fit_reports_the_gap_and_the_excess_at_the_floor() -> None:
                 id="2",
                 grams=100,
                 name="Pasta bake",
-                macros=Macros(kcal=500.0, protein=25.0, fat=20.0, carbs=60.0),
+                macros=Macros(
+                    kcal=500.0, protein=25.0, fat=20.0, carbohydrates=60.0
+                ),
             )
         ],
     )
@@ -90,8 +94,8 @@ def soup(servings: int = 2) -> Recipe:
                     kcal=42.0,
                     protein=3.0,
                     fat=1.6,
-                    carbs=3.3,
-                    fiber=0.2,
+                    carbohydrates=3.3,
+                    dietary_fiber=0.2,
                     sugar=1.0,
                 ),
             ),
@@ -101,7 +105,11 @@ def soup(servings: int = 2) -> Recipe:
                 grams=10,
                 name="Garlic, raw",
                 macros=Macros(
-                    kcal=139.0, protein=6.4, fat=0.5, carbs=23.0, fiber=17.0
+                    kcal=139.0,
+                    protein=6.4,
+                    fat=0.5,
+                    carbohydrates=23.0,
+                    dietary_fiber=17.0,
                 ),
             ),
         ],
@@ -112,8 +120,8 @@ def test_a_nutrient_every_ingredient_carries_is_totalled() -> None:
     macros = recipe_macros(soup())
 
     # 250 g at 0.2/100 g plus 10 g at 17/100 g is 2.2 g of fibre.
-    assert macros.total["fiber"] == 2.2
-    assert macros.per_serving["fiber"] == 1.1
+    assert macros.total["dietary_fiber"] == 2.2
+    assert macros.per_serving["dietary_fiber"] == 1.1
 
 
 def test_a_nutrient_one_ingredient_lacks_is_omitted() -> None:
@@ -128,4 +136,4 @@ def test_the_four_macros_are_reported_whatever_else_is_missing() -> None:
     """Widening the snapshot must not narrow what a recipe already totals."""
     macros = recipe_macros(chicken())
 
-    assert set(macros.total) == {"kcal", "protein", "fat", "carbs"}
+    assert set(macros.total) == {"kcal", "protein", "fat", "carbohydrates"}

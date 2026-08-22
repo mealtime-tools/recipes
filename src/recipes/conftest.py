@@ -23,7 +23,8 @@ class FakeLookup:
     """A product database of exactly the rows a test declares.
 
     Anything not declared misses, which is the case rule 12 is about. A row is
-    `(name, kcal, protein, fat, carbs)` and may go on to state the optional
+    `(name, kcal, protein, fat, carbohydrates)` and may go on to state the
+    optional
     nutrients, in the order `OPTIONAL_NUTRIENT_KEYS` gives them.
     """
 
@@ -37,7 +38,7 @@ class FakeLookup:
         if row is None:
             return None
 
-        name, kcal, protein, fat, carbs = row[:5]
+        name, kcal, protein, fat, carbohydrates = row[:5]
         optional = dict(zip(OPTIONAL_NUTRIENT_KEYS, row[5:]))
         return Product(
             name=name,
@@ -46,7 +47,7 @@ class FakeLookup:
             kcal=kcal,
             protein=protein,
             fat=fat,
-            carbs=carbs,
+            carbohydrates=carbohydrates,
             **optional,
         )
 
@@ -68,7 +69,7 @@ class FakeLookup:
                             "kcal": kcal,
                             "protein": p,
                             "fat": f,
-                            "carbs": c,
+                            "carbohydrates": c,
                         },
                     }
                 )

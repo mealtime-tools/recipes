@@ -13,6 +13,7 @@ from typing import Any
 
 import click
 from agentcli import (
+    MACRO_KEYS,
     candidate,
     emit,
     json_option,
@@ -22,6 +23,7 @@ from agentcli import (
     rank,
     unverifiable,
 )
+from nutrition import vocabulary
 
 from recipes import store
 from recipes.commands.shared import dir_option, refusing, resolve_dir
@@ -32,6 +34,12 @@ from recipes.macros import (
     unresolved,
 )
 from recipes.render import ingredient_rows, macro_summary
+
+# The shared candidate record spells its own four macros, and eatout, mealplan
+# and plate all read those spellings, so this is a translation and not a
+# rename: `carbohydrates` goes out as agentcli's `carbs`. Built from the
+# vocabulary so a name only has to agree in one direction.
+_SHARED_SPELLING = {vocabulary.resolve(key): key for key in MACRO_KEYS}
 
 
 @click.command("search")
@@ -87,8 +95,8 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
 
     `per_serving` appears twice on purpose: the shared record's copy is what
     an orchestrator ranks and filters on, and agentcli fixes its keys at the
-    four macros; `detail.per_serving` is this recipe's own answer, fibre
-    included.
+    four macros and its own spelling of them; `detail.per_serving` is this
+    recipe's own answer, in the canonical names and with fibre included.
     """
     recipe = stored.recipe
     totals = recipe_macros(recipe) if is_complete(recipe) else None
@@ -97,7 +105,7 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
         kind="recipe",
         identifier=store.recipe_key(recipe.name),
         name=recipe.name,
-        per_serving=dict(totals.per_serving) if totals else {},
+        per_serving=_shared(totals.per_serving) if totals else {},
         detail={
             "servings": parse_servings(recipe.servings),
             "tags": list(recipe.tags),
@@ -118,6 +126,14 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
             "path": str(stored.path),
         },
     )
+
+
+def _shared(per_serving: dict[str, float]) -> dict[str, float]:
+    """This recipe's figures under the shared record's own key spellings."""
+    return {
+        _SHARED_SPELLING.get(key, key): value
+        for key, value in per_serving.items()
+    }
 
 
 def _checkable(record: dict[str, Any], filters: dict[str, Any]) -> bool:

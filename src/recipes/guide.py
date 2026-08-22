@@ -81,16 +81,18 @@ NUTRIENTS
   per-100g snapshot. The reference alone rots when a retailer renumbers its
   catalogue; the snapshot alone cannot be refreshed.
 
-  A snapshot always carries kcal, protein, fat and carbs, and carries fiber
-  and sugar when the product record states them. An optional nutrient the
-  record did not state is absent, never 0 and never null.
+  A snapshot always carries kcal, protein, fat and carbohydrates, and carries
+  dietary_fiber, sodium and sugar when the product record states them. Those
+  are the canonical names of the vocabulary these tools share, so read
+  carbohydrates and dietary_fiber, not carbs or fiber. An optional nutrient
+  the record did not state is absent, never 0 and never null.
 
   Totals are all-or-nothing per nutrient: total and per_serving report a
   nutrient only when every ingredient supplied it, and otherwise omit it. A
   partial fibre total silently under-reports, which is worse than none, and an
-  absent key is how a caller sees that. complete: true means the four required macros resolved and
-  nothing more, so a question about fibre is answered by looking for fiber in
-  the per-serving figures. show, resolve and fit publish those as
+  absent key is how a caller sees that. complete: true means the four required
+  macros resolved and nothing more, so a question about fibre is answered by
+  looking for dietary_fiber in the per-serving figures. show, resolve and fit publish those as
   macros.per_serving; a search record publishes them as detail.per_serving,
   because its top-level per_serving is the shared shape and always carries
   exactly the four macros.
@@ -112,7 +114,7 @@ SEARCH
   by name, so a merged list is ordered the same way whoever produced it:
 
     {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
-     "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbs":0},
+     "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbohydrates":0},
      "complete":true,"detail":{"servings":2,"ingredients":[...],
      "total":{...},"per_serving":{...},"path":"..."}}
 
@@ -147,7 +149,8 @@ SHARE URLS
     {"v":1,"n":"Name","s":2,"t":"notes",
      "i":[["Ingredient",150,318,7.8,10.6,45]]}
 
-  i entries are [name, grams, kcal, protein, fat, carbs], per 100 g like
+  i entries are [name, grams, kcal, protein, fat, carbohydrates], per 100 g
+  like
   everything else. n and t are omitted when empty, s when it is 1. Optional
   nutrients are deliberately not carried: plate owns this format, the payload
   is bounded by QR capacity, and the viewer displays nothing but the four.
