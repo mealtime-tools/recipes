@@ -48,7 +48,7 @@ filename is cosmetic.
 Every ingredient stores a product reference *and* a frozen per-100 g macro
 snapshot, so a recipe survives a retailer renumbering its catalogue and totals
 without a network. The snapshot keeps whatever the record stated: `kcal`,
-`protein`, `fat` and `carbs` always, plus `fiber` and `sugar` when the product
+`protein`, `fat` and `carbs` always, plus `fiber`, `sodium` and `sugar` when the product
 database has them. `resolve --force` re-reads the references and reports what
 changed, a nutrient appearing or vanishing included.
 
@@ -91,7 +91,7 @@ is an error and the recipe refuses to total. Missing is not zero. Totals scale
 per-100 g values by `grams / 100`, and displayed rounding is half away from
 zero to match JavaScript rather than Python's banker rounding.
 
-The four macros are required of every snapshot. `fiber` and `sugar` are
+The four macros are required of every snapshot. `fiber`, `sodium` and `sugar` are
 written only when the product record stated them, and are absent — never
 `0`, never `null` — when it did not: a record that never stated its fibre is
 not one stating zero. Totals are **all-or-nothing per nutrient**. `total` and

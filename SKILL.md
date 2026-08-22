@@ -63,7 +63,7 @@ ingredients:
 Then `recipes resolve "Chicken Bowl" --json` fills in each `name` and
 per-100 g `macros` from the product database and writes the file back. A
 snapshot always carries `kcal`, `protein`, `fat` and `carbs`, and also
-`fiber` and `sugar` when the record states them.
+`fiber`, `sodium` and `sugar` when the record states them.
 
 - Each ingredient it filled in is listed under `resolved`.
 - **Idempotent.** An ingredient that already carries macros is left alone, so
@@ -167,7 +167,7 @@ renumbers its catalogue and is useless offline; the snapshot alone cannot be
 refreshed.
 
 Nutrients are per 100 g everywhere, in the database and in the snapshot.
-Totals scale by `grams / 100` at the last step. `fiber` and `sugar` are
+Totals scale by `grams / 100` at the last step. `fiber`, `sodium` and `sugar` are
 written only when the source record stated them and are absent otherwise —
 never `0` and never `null`, because a record that never stated its fibre is
 not one stating zero.

@@ -17,7 +17,7 @@ MACRO_KEYS = ("kcal", "protein", "fat", "carbs")
 
 # Carried when the source record has them and absent when it does not, so a
 # record that never stated its fibre cannot be read as one stating zero.
-OPTIONAL_NUTRIENT_KEYS = ("fiber", "sugar")
+OPTIONAL_NUTRIENT_KEYS = ("fiber", "sodium", "sugar")
 
 # Every nutrient a snapshot may carry, in the order everything renders them.
 NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
@@ -32,6 +32,7 @@ class Macros:
     fat: float
     carbs: float
     fiber: float | None = None
+    sodium: float | None = None
     sugar: float | None = None
 
     def as_dict(self) -> dict[str, float]:
@@ -63,6 +64,7 @@ class Product:
     fat: float
     carbs: float
     fiber: float | None = None
+    sodium: float | None = None
     sugar: float | None = None
     source: str = ""
     id: str = ""

@@ -92,9 +92,11 @@ def product_from_record(record: dict) -> Product:
 def _search_results(results: list[dict]) -> list[dict]:
     """Translate Pantry search rows at the Recipes boundary.
 
-    The four macros only: pantry's search rows zero an absent nutrient, and a
-    browsing surface is not worth inventing a fibre figure for. A reference
-    resolved through `lookup` reads the record itself and keeps what it says.
+    The four macros only. Pantry zeroes those on a search row because every
+    record has them, but carries any other nutrient solely when the record
+    states it -- so widening this loop would read an absent key as a zero.
+    A reference resolved through `lookup` reads the record and keeps what it
+    says.
     """
     return [
         {
