@@ -13,11 +13,9 @@ import json
 import os
 from math import isfinite
 from pathlib import Path
-from typing import Any
 
 import click
 from pantry import data as pantry_data
-from pantry.local import Local
 from pantry.store import Store
 
 from recipes.models import (
@@ -59,7 +57,7 @@ def _kcal(record: dict) -> float:
 
 
 def product_from_record(record: dict) -> Product:
-    """Read one pantry JSONL record. Nutrients are per 100 g, always."""
+    """Read one Pantry record with whole-item nutrients and optional weight."""
     values = {"kcal": _kcal(record)}
     for field in MACRO_KEYS[1:]:
         if record.get(field) is None:
@@ -85,32 +83,11 @@ def product_from_record(record: dict) -> Product:
         source=str(record.get("source") or ""),
         id=str(record.get("id") or ""),
         brand=str(record.get("brand") or ""),
+        grams=(
+            float(record["grams"]) if record.get("grams") is not None else None
+        ),
         **values,
     )
-
-
-def _search_results(results: list[dict]) -> list[dict]:
-    """Translate Pantry search rows at the Recipes boundary.
-
-    The four macros only. Pantry zeroes those on a search row because every
-    record has them, but carries any other nutrient solely when the record
-    states it -- so widening this loop would read an absent key as a zero.
-    A reference resolved through `lookup` reads the record and keeps what it
-    says.
-    """
-    return [
-        {
-            "source": result.get("source"),
-            "id": str(result.get("id")),
-            "name": result.get("name", ""),
-            "brand": result.get("brand") or "",
-            "macros": {
-                key: float(result.get("nutrients", {}).get(key, 0))
-                for key in MACRO_KEYS
-            },
-        }
-        for result in results
-    ]
 
 
 class PantryProducts:
@@ -123,11 +100,6 @@ class PantryProducts:
         record = self.store.find(source, id)
         return product_from_record(record) if record is not None else None
 
-    def search(
-        self, query: str, limit: int = 10, remote: bool = False
-    ) -> list[dict]:
-        return _search_results(self.store.search(query, limit=limit))
-
 
 class JsonlProducts:
     """Products read from pantry-format JSONL files, loaded on first use.
@@ -139,13 +111,9 @@ class JsonlProducts:
     def __init__(self, paths: list[Path]) -> None:
         self.paths = paths
         self._index: dict[tuple[str, str], Product] | None = None
-        self._local: Any = None
 
     def _load(self) -> None:
-
         index: dict[tuple[str, str], Product] = {}
-        raw_records: list[dict] = []
-
         for path in self.paths:
             for number, line in enumerate(
                 path.read_text(encoding="utf-8").splitlines(), start=1
@@ -169,25 +137,14 @@ class JsonlProducts:
                 record["source"] = source
                 product = product_from_record(record)
                 index[(source, str(record.get("id")))] = product
-                raw_records.append(record)
 
         self._index = index
-        self._local = Local(raw_records)
 
     def lookup(self, source: str, id: str) -> Product | None:
         if self._index is None:
             self._load()
         assert self._index is not None
         return self._index.get((source, id))
-
-    def search(
-        self, query: str, limit: int = 10, remote: bool = False
-    ) -> list[dict]:
-        if self._local is None:
-            self._load()
-        assert self._local is not None
-        results = self._local.search(query, limit=limit)
-        return _search_results(results)
 
 
 def resolve_lookup(

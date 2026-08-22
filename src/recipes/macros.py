@@ -6,7 +6,7 @@ second implementation that treated a missing snapshot as zero.
 """
 
 import math
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from recipes.models import (
     NUTRIENT_KEYS,
@@ -73,7 +73,7 @@ def unresolved(recipe: Recipe) -> list[str]:
 
 
 def is_complete(recipe: Recipe) -> bool:
-    """Whether every ingredient carries a usable per-100 g snapshot."""
+    """Whether every ingredient carries a usable nutrient snapshot."""
     return bool(recipe.ingredients) and not unresolved(recipe)
 
 
@@ -92,22 +92,16 @@ def _absent_from(
         key
         for key in OPTIONAL_NUTRIENT_KEYS
         for _, values in stated
-        if key not in values
+        if values.get(key) is None
     }
 
 
-def ingredient_macros(item: Ingredient) -> dict[str, float]:
-    """Scale one frozen per-100 g snapshot by the amount used.
-
-    Only the nutrients that snapshot carries: an absent one is not a zero.
-    """
+def ingredient_macros(item: Ingredient) -> dict[str, float | None]:
+    """Return the nutrients stored for this ingredient."""
     if item.macros is None:
         raise ValueError(f"{item.ref}: no macro snapshot")
 
-    factor = item.grams / 100
-    return {
-        key: value * factor for key, value in item.macros.as_dict().items()
-    }
+    return item.macros.as_dict()
 
 
 @dataclass(frozen=True)
@@ -135,7 +129,9 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
     totals = {key: 0.0 for key in NUTRIENT_KEYS if key not in absent}
     for _, values in scaled:
         for key in totals:
-            totals[key] += values[key]
+            value = values[key]
+            assert value is not None
+            totals[key] += value
 
     return RecipeMacros(
         total={key: round_js(value) for key, value in totals.items()},
@@ -143,84 +139,3 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
             key: round_js(value / servings) for key, value in totals.items()
         },
     )
-
-
-@dataclass(frozen=True)
-class FitOutcome:
-    fits: bool
-    scale: float | None = None
-    recipe: Recipe | None = None
-    gap: dict[str, float] | None = None
-    message: str = ""
-    calorie_excess_at_min_protein: float | None = None
-
-
-def _gap(
-    current: dict[str, float], max_kcal: float, min_protein: float
-) -> dict[str, float]:
-    return {
-        "protein_g": round_js(max(0.0, min_protein - current["protein"])),
-        "kcal": round_js(max(0.0, current["kcal"] - max_kcal)),
-    }
-
-
-def _gap_message(gap: dict[str, float]) -> str:
-    # `:g` so a whole number reads as "15g" and not "15.0g".
-    parts = [
-        f"need +{gap['protein_g']:g}g protein" if gap["protein_g"] else "",
-        f"-{gap['kcal']:g} kcal" if gap["kcal"] else "",
-    ]
-    return (
-        ", ".join(part for part in parts if part)
-        or "constraints cannot be met by proportional scaling"
-    )
-
-
-def fit_recipe(
-    recipe: Recipe, *, max_kcal: float, min_protein: float
-) -> FitOutcome:
-    """Scale every amount by the single proportional solution, or explain.
-
-    One factor for the whole recipe: it never substitutes an ingredient or
-    invents a meal, so `fits: false` is a real constraint conflict and not a
-    failure to search hard enough.
-    """
-    current = recipe_macros(recipe).per_serving
-
-    # No protein means no factor can ever reach the floor.
-    if current["protein"] <= 0:
-        gap = _gap(current, max_kcal, min_protein)
-        return FitOutcome(fits=False, gap=gap, message=_gap_message(gap))
-
-    protein_scale = min_protein / current["protein"]
-    calorie_scale = (
-        max_kcal / current["kcal"] if current["kcal"] > 0 else math.inf
-    )
-
-    # The protein floor and the calorie ceiling cross: report by how much.
-    if protein_scale > calorie_scale:
-        gap = _gap(current, max_kcal, min_protein)
-        excess = round_js(max(0.0, current["kcal"] * protein_scale - max_kcal))
-        return FitOutcome(
-            fits=False,
-            gap=gap,
-            message=_gap_message(gap),
-            calorie_excess_at_min_protein=excess,
-        )
-
-    # Scale up to the floor, down to the ceiling, or leave a fitting recipe be.
-    if current["protein"] < min_protein:
-        scale = protein_scale
-    elif current["kcal"] > max_kcal:
-        scale = calorie_scale
-    else:
-        scale = 1.0
-
-    scaled = replace(
-        recipe,
-        ingredients=[
-            replace(item, grams=round_js(item.grams * scale))
-            for item in recipe.ingredients
-        ],
-    )
-    return FitOutcome(fits=True, scale=round_js(scale, 4), recipe=scaled)

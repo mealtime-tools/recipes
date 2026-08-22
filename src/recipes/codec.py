@@ -1,13 +1,12 @@
 """The share URL: a whole recipe, in a fragment, resolvable by nobody.
 
 The page that renders one has no database and no network, so the payload
-carries resolved names and macros instead of references. It lives in the
+carries resolved names and nutrients instead of references. It lives in the
 fragment rather than the query so the payload never reaches a server: it stays
 out of Pages logs and referrers, and it escapes query-length limits.
 
 Wire format (see SPEC): `base64url(raw_deflate(compact_json))`, `=` stripped.
-Keys are one character because they repeat once per ingredient, and a QR code
-is the real size constraint.
+The compressed JSON uses the same readable fields as every other component.
 """
 
 import base64
@@ -23,7 +22,6 @@ from recipes.macros import (
 from recipes.models import Ingredient, Macros, Recipe
 
 FRAGMENT_KEY = "r"
-VERSION = 1
 
 # Raw deflate: no zlib header, no checksum. Two bytes of header and four of
 # Adler-32 are eight base64 characters that a QR code has to carry.
@@ -45,34 +43,25 @@ def payload_of(recipe: Recipe) -> dict:
     if errors:
         raise IncompleteRecipe(recipe, errors)
 
-    payload: dict[str, object] = {"v": VERSION}
-
-    # Omitted when they carry nothing, so a simple link stays short.
-    if recipe.name:
-        payload["n"] = recipe.name
-    servings = parse_servings(recipe.servings)
-    if servings > 1:
-        payload["s"] = servings
-    if recipe.notes:
-        payload["t"] = recipe.notes
-
-    payload["i"] = [_row_of(item) for item in recipe.ingredients]
-    return payload
+    return {
+        "name": recipe.name,
+        "servings": parse_servings(recipe.servings),
+        "notes": recipe.notes,
+        "tags": list(recipe.tags),
+        "ingredients": [_item_of(item) for item in recipe.ingredients],
+    }
 
 
-def _row_of(item: Ingredient) -> list:
-    """One ingredient as `[name, grams, kcal, protein, fat, carbs]`."""
+def _item_of(item: Ingredient) -> dict:
+    """One readable ingredient using the shared nutrient shape."""
     macros = item.macros
     assert macros is not None, "payload_of refuses unresolved ingredients"
 
-    return [
-        item.name or item.ref,
-        compact_number(item.grams),
-        float(macros.kcal),
-        float(macros.protein),
-        float(macros.fat),
-        float(macros.carbs),
-    ]
+    return {
+        "name": item.name or item.ref,
+        "grams": compact_number(item.grams),
+        **macros.as_dict(),
+    }
 
 
 def encode_payload(payload: dict) -> str:
@@ -115,41 +104,42 @@ def recipe_from_payload(payload: dict) -> Recipe:
     `manual` with the ingredient name as the id: honest about where the macros
     came from, and refreshable by nothing, which is correct.
     """
-    version = payload.get("v")
-    if version != VERSION:
-        raise ShareUrlError(f"unsupported share payload version: {version}")
-
-    rows = payload.get("i") or []
+    rows = payload.get("ingredients") or []
     if not isinstance(rows, list):
         raise ShareUrlError("share payload ingredients are not a list")
 
     return Recipe(
-        name=str(payload.get("n") or ""),
-        servings=parse_servings(payload.get("s", 1)),
-        notes=str(payload.get("t") or ""),
-        ingredients=[_ingredient_from_row(row) for row in rows],
+        name=str(payload.get("name") or ""),
+        servings=parse_servings(payload.get("servings", 1)),
+        notes=str(payload.get("notes") or ""),
+        tags=[str(tag) for tag in payload.get("tags") or []],
+        ingredients=[_ingredient_from_item(row) for row in rows],
     )
 
 
-def _ingredient_from_row(row: object) -> Ingredient:
-    """Read `[name, grams, kcal, protein, fat, carbs]`, or refuse it.
+def _ingredient_from_item(row: object) -> Ingredient:
+    """Read one canonical ingredient, or refuse it.
 
     A short row is refused rather than padded with zeros: an inferred zero
     under-counts every total downstream and cannot be told from a real one.
     """
-    if not isinstance(row, list) or len(row) < 6:
+    if not isinstance(row, dict):
         raise ShareUrlError(f"malformed ingredient entry: {row!r}")
 
     try:
-        name, grams, kcal, protein, fat, carbs = (
-            str(row[0]),
-            float(row[1]),
-            float(row[2]),
-            float(row[3]),
-            float(row[4]),
-            float(row[5]),
+        name = str(row.get("name") or "Ingredient")
+        grams = float(row["grams"])
+        values = {
+            key: float(row[key]) for key in ("kcal", "protein", "fat", "carbs")
+        }
+        values.update(
+            {
+                key: float(row[key])
+                for key in ("fiber", "sodium", "sugar")
+                if row.get(key) is not None
+            }
         )
-    except (TypeError, ValueError) as exc:
+    except (KeyError, TypeError, ValueError) as exc:
         raise ShareUrlError(f"malformed ingredient entry: {row!r}") from exc
 
     return Ingredient(
@@ -157,5 +147,5 @@ def _ingredient_from_row(row: object) -> Ingredient:
         id=name,
         grams=grams,
         name=name,
-        macros=Macros(kcal=kcal, protein=protein, fat=fat, carbs=carbs),
+        macros=Macros(**values),
     )

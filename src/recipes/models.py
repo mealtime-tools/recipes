@@ -1,7 +1,7 @@
 """The recipe record, and the narrow seam onto a product database.
 
-Every ingredient carries both a reference `(source, id)` and a frozen
-per-100 g macro snapshot. The reference alone rots when a retailer renumbers
+Every ingredient carries both a reference `(source, id)` and frozen nutrients
+for its actual weight. The reference alone rots when a retailer renumbers
 its catalogue and is useless offline; the snapshot alone cannot be refreshed.
 Keeping both is what lets a recipe outlive the database it came from.
 """
@@ -10,7 +10,14 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 # `overlay` is storage, never a source; see SPEC.
-PRODUCT_SOURCES = ("coles", "woolworths", "afcd", "usda", "manual")
+PRODUCT_SOURCES = (
+    "coles",
+    "woolworths",
+    "afcd",
+    "usda",
+    "openfoodfacts",
+    "manual",
+)
 
 # The four a snapshot must carry to be usable for arithmetic at all.
 MACRO_KEYS = ("kcal", "protein", "fat", "carbs")
@@ -25,7 +32,7 @@ NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
 
 @dataclass(frozen=True)
 class Macros:
-    """Per 100 g, always. Consumers scale by `grams / 100` at the last step."""
+    """Nutrients for one whole product or ingredient."""
 
     kcal: float
     protein: float
@@ -35,19 +42,9 @@ class Macros:
     sodium: float | None = None
     sugar: float | None = None
 
-    def as_dict(self) -> dict[str, float]:
-        """Only the nutrients this snapshot has. An absent one is no key.
-
-        Omitted rather than written null: the YAML store and the JSON
-        description both read this, and `fiber: null` in a file invites the
-        next reader to treat it as a number.
-        """
-        values = {key: getattr(self, key) for key in MACRO_KEYS}
-        for key in OPTIONAL_NUTRIENT_KEYS:
-            if getattr(self, key) is not None:
-                values[key] = getattr(self, key)
-
-        return values
+    def as_dict(self) -> dict[str, float | None]:
+        """Every standard nutrient. Unknown values are null, never zero."""
+        return {key: getattr(self, key) for key in NUTRIENT_KEYS}
 
 
 @dataclass(frozen=True)
@@ -69,9 +66,20 @@ class Product:
     source: str = ""
     id: str = ""
     brand: str = ""
+    grams: float | None = None
 
-    def macros(self) -> Macros:
-        return Macros(**{key: getattr(self, key) for key in NUTRIENT_KEYS})
+    def macros(self, grams: float | None = None) -> Macros:
+        factor = (grams or self.grams or 100) / (self.grams or 100)
+        return Macros(
+            **{
+                key: (
+                    getattr(self, key) * factor
+                    if getattr(self, key) is not None
+                    else None
+                )
+                for key in NUTRIENT_KEYS
+            }
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -79,7 +87,8 @@ class Product:
             "id": self.id,
             "name": self.name,
             "brand": self.brand,
-            "macros": self.macros().as_dict(),
+            "grams": self.grams,
+            **self.macros().as_dict(),
         }
 
 

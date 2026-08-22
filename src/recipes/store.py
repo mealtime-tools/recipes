@@ -100,17 +100,14 @@ def path_for(directory: Path, name: str) -> Path:
     return directory / filename_for(name)
 
 
-def _macros_from(raw: Any, ref: str) -> Macros | None:
+def _nutrients_from(raw: dict[str, Any], ref: str) -> Macros | None:
     """Read a snapshot, or report its absence. Never infer a zero."""
-    if raw is None:
+    if not any(raw.get(key) is not None for key in MACRO_KEYS):
         return None
-
-    if not isinstance(raw, dict):
-        raise StoreError(f"{ref}: macros must be a mapping")
 
     missing = [key for key in MACRO_KEYS if raw.get(key) is None]
     if missing:
-        raise StoreError(f"{ref}: macros missing {', '.join(missing)}")
+        raise StoreError(f"{ref}: nutrients missing {', '.join(missing)}")
 
     values = {key: float(raw[key]) for key in MACRO_KEYS}
 
@@ -127,7 +124,7 @@ def _macros_from(raw: Any, ref: str) -> Macros | None:
     # ingredient and the key.
     unusable = [key for key, value in values.items() if not isfinite(value)]
     if unusable:
-        raise StoreError(f"{ref}: macros not finite: {', '.join(unusable)}")
+        raise StoreError(f"{ref}: nutrients not finite: {', '.join(unusable)}")
 
     return Macros(**values)
 
@@ -159,7 +156,7 @@ def _ingredient_from(raw: Any) -> Ingredient:
         id=str(raw.get("id") or ""),
         grams=grams,
         name=str(raw["name"]) if raw.get("name") else None,
-        macros=_macros_from(raw.get("macros"), ref),
+        macros=_nutrients_from(raw, ref),
     )
 
 
@@ -185,7 +182,7 @@ def recipe_from_mapping(raw: Any) -> Recipe:
 
 
 def mapping_of(recipe: Recipe) -> dict[str, Any]:
-    """The YAML shape. Absent optional keys are omitted, not written empty."""
+    """The YAML shape."""
     mapping: dict[str, Any] = {
         "name": recipe.name,
         "servings": parse_servings(recipe.servings),
@@ -215,7 +212,7 @@ def _ingredient_mapping(item: Ingredient) -> dict[str, Any]:
     # Omitted rather than zeroed when unresolved, so a reader can tell an
     # unresolved ingredient from a genuinely calorie-free one.
     if item.macros is not None:
-        mapping["macros"] = item.macros.as_dict()
+        mapping.update(item.macros.as_dict())
 
     return mapping
 

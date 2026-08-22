@@ -52,7 +52,7 @@ def _resolve_one(
         id=id,
         grams=grams,
         name=product.name or ref,
-        macros=product.macros(),
+        macros=product.macros(grams),
     )
     return resolved, None
 

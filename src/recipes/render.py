@@ -6,19 +6,23 @@ cannot drift between `show`, `resolve`, `fit` and `search`.
 
 from collections.abc import Iterable
 
-from recipes.macros import is_complete, recipe_macros, unresolved
+from recipes.macros import is_complete, recipe_macros, round_js, unresolved
 from recipes.models import NUTRIENT_KEYS, Recipe
 
 
 def ingredient_rows(recipe: Recipe) -> list[dict]:
-    """Every ingredient as JSON. `macros` is null when it never resolved."""
+    """Every ingredient as flat JSON."""
     return [
         {
             "source": item.source,
             "id": item.id,
             "grams": item.grams,
             "name": item.name,
-            "macros": item.macros.as_dict() if item.macros else None,
+            **(
+                item.macros.as_dict()
+                if item.macros
+                else {key: None for key in NUTRIENT_KEYS}
+            ),
         }
         for item in recipe.ingredients
     ]
@@ -27,36 +31,35 @@ def ingredient_rows(recipe: Recipe) -> list[dict]:
 def describe(recipe: Recipe) -> dict:
     """A recipe as JSON: its fields, its state, and totals only if entitled.
 
-    `macros` is null exactly when `complete` is false. An agent that reads
-    only `macros` therefore cannot mistake a partial sum for a total. No share
+    `nutrients` is null exactly when `complete` is false. An agent cannot
+    mistake a partial sum for a total. No share
     URL: building one needs a configured viewer, which only `share` has.
     """
     complete = is_complete(recipe)
     macros = recipe_macros(recipe) if complete else None
+    grams = sum(item.grams for item in recipe.ingredients)
 
     return {
         "name": recipe.name,
         "servings": recipe.servings,
         "tags": list(recipe.tags),
         "notes": recipe.notes,
+        "grams": (round_js(grams / recipe.servings) if grams else None),
         "ingredients": ingredient_rows(recipe),
         "complete": complete,
         "unresolved": unresolved(recipe),
-        "macros": (
-            {
-                "total": macros.total,
-                "per_serving": macros.per_serving,
-            }
-            if macros
-            else None
-        ),
+        **{
+            key: macros.per_serving.get(key) if macros else None
+            for key in NUTRIENT_KEYS
+        },
     }
 
 
-def macro_summary(values: dict[str, float]) -> str:
-    """Only the nutrients there are: a missing one is absent, never 0."""
+def macro_summary(values: dict[str, float | None]) -> str:
+    """Print a question mark for unknown values and zero only for zero."""
     return "  ".join(
-        f"{key} {values[key]:g}" for key in NUTRIENT_KEYS if key in values
+        f"{key} {values[key]:g}" if values[key] is not None else f"{key} ?"
+        for key in NUTRIENT_KEYS
     )
 
 
@@ -71,9 +74,8 @@ def recipe_lines(item: dict) -> Iterable[str]:
         )
         yield f"  {ingredient['grams']:g} g  {name}"
 
-    if item["macros"]:
-        yield f"  total        {macro_summary(item['macros']['total'])}"
-        yield f"  per serving  {macro_summary(item['macros']['per_serving'])}"
+    if item["complete"]:
+        yield f"  per serving  {macro_summary(item)}"
 
     # Named, so the next command can be about the missing ingredient rather
     # than about the recipe being mysteriously unusable.

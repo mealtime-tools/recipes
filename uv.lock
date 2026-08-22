@@ -60,15 +60,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mealtime-plate"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4a/48/8c91a08272099254d403f32a3677154aa0e9e046a64437a8255ba27ac79c/mealtime_plate-0.1.0.tar.gz", hash = "sha256:acdd0b6bd9dd8c0269e66a3b5795e61753455b054604cb7d42196a49a33fc6cf", size = 49310, upload-time = "2026-08-21T04:07:01.803Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/98/4cd0e2700fbf5cd61db3140c96fdc1d7226637904356071330bfb62867c8/mealtime_plate-0.1.0-py3-none-any.whl", hash = "sha256:fe7c27f43579cd6322321b2ee88295a7b26c1256ecbceac7ffa9610e5e0f69ac", size = 29150, upload-time = "2026-08-21T04:07:00.781Z" },
-]
-
-[[package]]
 name = "mealtime-recipes"
 version = "0.1.0"
 source = { editable = "." }
@@ -76,7 +67,6 @@ dependencies = [
     { name = "click" },
     { name = "click-agentcli" },
     { name = "mealtime-pantry" },
-    { name = "mealtime-plate" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
 ]
@@ -92,7 +82,6 @@ requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "click-agentcli", specifier = ">=0.1.0" },
     { name = "mealtime-pantry", specifier = ">=0.1.0" },
-    { name = "mealtime-plate", specifier = ">=0.1.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
