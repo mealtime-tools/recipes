@@ -92,10 +92,9 @@ NUTRIENTS
   partial fibre total silently under-reports, which is worse than none, and an
   absent key is how a caller sees that. complete: true means the four required
   macros resolved and nothing more, so a question about fibre is answered by
-  looking for dietary_fiber in the per-serving figures. show, resolve and fit publish those as
-  macros.per_serving; a search record publishes them as detail.per_serving,
-  because its top-level per_serving is the shared shape and always carries
-  exactly the four macros.
+  looking for dietary_fiber in the per-serving figures. show, resolve and fit
+  publish those as macros.per_serving; a search record publishes them as its
+  top-level per_serving, in the same canonical names.
 
 INCOMPLETE RECIPES
   An ingredient with no macro snapshot is reported by name. No total, filter
@@ -116,19 +115,19 @@ SEARCH
     {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
      "per_serving":{"kcal":165,"protein":31,"fat":3.6,"carbohydrates":0},
      "complete":true,"detail":{"servings":2,"ingredients":[...],
-     "total":{...},"per_serving":{...},"path":"..."}}
+     "total":{...},"path":"..."}}
 
   `id` is the recipe's identity key, which show, resolve, fit and share all
   accept as a name. Everything recipe-specific is under `detail`, which
-  nothing shared reads: detail.total and detail.per_serving carry every
-  nutrient the recipe can report. Matching nothing is exit 0 with
-  an empty list. --limit 0 means no limit.
+  nothing shared reads. Matching nothing is exit 0 with an empty list.
+  --limit 0 means no limit.
 
-  The top-level per_serving is the shared record's and is always exactly the
-  four macros, because agentcli defines that shape and an orchestrator ranks
-  on it. The printed list is not bound by it and shows every nutrient, the
-  same figures show prints, so a person reading the ranked list is never left
-  dividing a total by servings.
+  The top-level per_serving is the shared record's and carries every nutrient
+  this recipe could total, in the canonical names, so eatout's records and
+  these can be merged and ranked as one list. complete says whether the four
+  required macros are among them and nothing about the rest. detail.total is
+  the whole recipe rather than one serving, which is the only figure per_serving
+  does not already give.
 
 FIT
   One factor scales every amount. It never substitutes an ingredient or

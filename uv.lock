@@ -16,14 +16,19 @@ wheels = [
 
 [[package]]
 name = "click-agentcli"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.4.0"
+source = { editable = "../../agentcli" }
 dependencies = [
     { name = "click" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/e7/a9186f191b546507d016c593ec0ed16e73da8c058bd5bb0192d0f6c8535b/click_agentcli-0.1.0.tar.gz", hash = "sha256:93b681323f3aadbd1c1d1d802463f7944d990e759e5bad289921e6821d578cf5", size = 23488, upload-time = "2026-08-20T12:55:41.653Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/1c/851bf43ed4d36c9f010666e5d34163455f35c4d21864520ddca4e646a5d1/click_agentcli-0.1.0-py3-none-any.whl", hash = "sha256:b0f91645af5dfa441ea57ad97535d2f0e46005dd33507b693d2a48e0fcaa88de", size = 23944, upload-time = "2026-08-20T12:55:40.639Z" },
+
+[package.metadata]
+requires-dist = [{ name = "click", specifier = ">=8.1" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.6" },
 ]
 
 [[package]]
@@ -115,7 +120,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1" },
-    { name = "click-agentcli", specifier = ">=0.1.0" },
+    { name = "click-agentcli", editable = "../../agentcli" },
     { name = "mealtime-nutrition", editable = "../nutrition" },
     { name = "mealtime-pantry", editable = "../pantry" },
     { name = "mealtime-plate", specifier = ">=0.1.0" },

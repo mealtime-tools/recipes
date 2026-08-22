@@ -18,21 +18,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          path: recipes
+          path: eat/recipes
 
-      # Both are path dependencies until they reach PyPI at a release that
+      # All three are path dependencies until they reach PyPI at a release that
       # speaks the canonical nutrient names, so the runner needs them beside
-      # this checkout. actions/checkout cannot write outside the workspace,
-      # hence all three repositories sit inside it.
+      # this checkout. actions/checkout cannot write outside the workspace, so
+      # the layout is reproduced inside it: the mealtime tools share a parent
+      # directory and `click-agentcli` sits one level above it, which is what
+      # the relative paths in `[tool.uv.sources]` mean.
+      - uses: actions/checkout@v7
+        with:
+          repository: owahltinez/click-agentcli
+          path: agentcli
+
       - uses: actions/checkout@v7
         with:
           repository: mealtime-tools/nutrition
-          path: nutrition
+          path: eat/nutrition
 
       - uses: actions/checkout@v7
         with:
           repository: mealtime-tools/pantry
-          path: pantry
+          path: eat/pantry
 
       # Pinned exactly: setup-uv dropped its floating major tags after v7,
       # so v8 and later only exist as exact versions.
@@ -47,4 +54,4 @@ jobs:
 
       - name: Run test suite
         run: uv run --python ${{ matrix.python-version }} pytest
-        working-directory: recipes
+        working-directory: eat/recipes

@@ -90,19 +90,19 @@ contain a colon.
 
 ```json
 {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
- "per_serving":{"kcal":165.0,"protein":31.0,"fat":3.6,"carbs":0.0},
+ "per_serving":{"kcal":165.0,"protein":31.0,"fat":3.6,"carbohydrates":0.0},
  "complete":true,"detail":{"servings":2,"tags":["dinner"],"notes":"...",
- "ingredients":[...],"total":{...},"per_serving":{...},"unresolved":[],
- "path":"/…/bowl.yaml"}}
+ "ingredients":[...],"total":{...},"unresolved":[],"path":"/…/bowl.yaml"}}
 ```
 
 Ranked by protein per 100 kcal, ties by name, so a list merged with eatout's
-is ordered the same way whoever produced it. Everything recipe-specific is
-under `detail`, which nothing shared reads — including `detail.per_serving`,
-which carries every nutrient the recipe can report, where the top-level
-`per_serving` is fixed at agentcli's four macros. `id` is the recipe's
-identity key and is accepted as the `<name>` argument of `show`, `resolve`,
-`fit` and `share`; `detail.path` is the file to edit.
+is ordered the same way whoever produced it. `per_serving` carries every
+nutrient the recipe could total, in the canonical names, and `complete` says
+whether the four required macros are among them. Everything recipe-specific is
+under `detail`, which nothing shared reads: `detail.total` is the whole recipe
+rather than one serving. `id` is the recipe's identity key and is accepted as
+the `<name>` argument of `show`, `resolve`, `fit` and `share`; `detail.path` is
+the file to edit.
 
 Matching nothing is exit `0` with `candidates: []`. `--limit 0` means no
 limit. Recipes whose macros cannot be totalled are never candidates and are
@@ -144,13 +144,10 @@ to decide whether a recipe can answer a question about fibre, look for
 `dietary_fiber` in the per-serving figures — not `complete`.
 
 Which figures depends on the command. `show`, `resolve` and `fit` return
-`macros.total` and `macros.per_serving`, both of which carry every nutrient.
-A `search` record's top-level `per_serving` is agentcli's shared shape, which
-fixes both its four keys and their spelling — `carbs` there, `carbohydrates`
-everywhere else — and is
-**always** exactly the four macros, so read `detail.per_serving` and
-`detail.total` there instead. Never
-divide a total by `servings` yourself; a per-serving figure is always
+`macros.total` and `macros.per_serving`, both of which carry every nutrient. A
+`search` record's top-level `per_serving` carries them too, in the same
+canonical names, and `detail.total` is the same figures for the whole recipe.
+Never divide a total by `servings` yourself; a per-serving figure is always
 published.
 
 ## Where recipes live

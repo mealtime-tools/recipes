@@ -102,9 +102,10 @@ not one stating zero. Totals are **all-or-nothing per nutrient**. `total` and
 otherwise omit it — an absent key is how a caller sees that. A partial fibre
 total silently under-reports, which is worse than no total at all. `complete` still means the four required macros
 resolved and says nothing about the rest, so a caller filtering on fibre reads
-the per-serving keys rather than `complete`. On `search` that means
-`detail.per_serving`: the candidate record's own `per_serving` is agentcli's
-shared shape and always carries exactly the four macros.
+the per-serving keys rather than `complete`. That holds on `search` too: the
+candidate record's `per_serving` carries every nutrient the recipe could total,
+under the same canonical names, because the shared record carries whatever a
+source published rather than a fixed set.
 
 ## Development
 
