@@ -7,7 +7,7 @@ cannot drift between `show`, `resolve`, `fit` and `search`.
 from collections.abc import Iterable
 
 from recipes.macros import is_complete, recipe_macros, unresolved
-from recipes.models import MACRO_KEYS, Recipe
+from recipes.models import NUTRIENT_KEYS, Recipe
 
 
 def ingredient_rows(recipe: Recipe) -> list[dict]:
@@ -43,7 +43,14 @@ def describe(recipe: Recipe) -> dict:
         "complete": complete,
         "unresolved": unresolved(recipe),
         "macros": (
-            {"total": macros.total, "per_serving": macros.per_serving}
+            {
+                "total": macros.total,
+                "per_serving": macros.per_serving,
+                # Which nutrients the totals leave out, and the ingredients
+                # that are the reason: `complete` is about the four required
+                # macros, so this is how a caller filtering on fibre can tell.
+                "missing": macros.missing,
+            }
             if macros
             else None
         ),
@@ -51,9 +58,9 @@ def describe(recipe: Recipe) -> dict:
 
 
 def macro_summary(values: dict[str, float]) -> str:
-    """Only the macros there are: a missing one is absent, never printed 0."""
+    """Only the nutrients there are: a missing one is absent, never 0."""
     return "  ".join(
-        f"{key} {values[key]:g}" for key in MACRO_KEYS if key in values
+        f"{key} {values[key]:g}" for key in NUTRIENT_KEYS if key in values
     )
 
 

@@ -19,12 +19,15 @@ from pantry import data as pantry_data
 from pantry.local import Local
 from pantry.store import Store
 
-from recipes.models import Product, ProductLookup
+from recipes.models import (
+    MACRO_KEYS,
+    OPTIONAL_NUTRIENT_KEYS,
+    Product,
+    ProductLookup,
+)
 
 # kJ per kcal, for records that carry only the SI figure.
 KJ_PER_KCAL = 4.184
-
-MACRO_FIELDS = ("kcal", "protein", "fat", "carbs")
 
 
 class ProductError(Exception):
@@ -57,10 +60,16 @@ def _kcal(record: dict) -> float:
 def product_from_record(record: dict) -> Product:
     """Read one pantry JSONL record. Nutrients are per 100 g, always."""
     values = {"kcal": _kcal(record)}
-    for field in MACRO_FIELDS[1:]:
+    for field in MACRO_KEYS[1:]:
         if record.get(field) is None:
             raise ProductError(f"record carries no {field}")
         values[field] = float(record[field])
+
+    # Carried through when the record states them, and left unset otherwise:
+    # pantry never infers a zero here, so neither does the snapshot.
+    for field in OPTIONAL_NUTRIENT_KEYS:
+        if record.get(field) is not None:
+            values[field] = float(record[field])
 
     return Product(
         name=str(record.get("name") or ""),
@@ -72,7 +81,12 @@ def product_from_record(record: dict) -> Product:
 
 
 def _search_results(results: list[dict]) -> list[dict]:
-    """Translate Pantry search rows at the Recipes boundary."""
+    """Translate Pantry search rows at the Recipes boundary.
+
+    The four macros only: pantry's search rows zero an absent nutrient, and a
+    browsing surface is not worth inventing a fibre figure for. A reference
+    resolved through `lookup` reads the record itself and keeps what it says.
+    """
     return [
         {
             "source": result.get("source"),
@@ -81,7 +95,7 @@ def _search_results(results: list[dict]) -> list[dict]:
             "brand": result.get("brand") or "",
             "macros": {
                 key: float(result.get("nutrients", {}).get(key, 0))
-                for key in MACRO_FIELDS
+                for key in MACRO_KEYS
             },
         }
         for result in results

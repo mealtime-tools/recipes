@@ -12,7 +12,15 @@ from typing import Any, Protocol, runtime_checkable
 # `overlay` is storage, never a source; see SPEC.
 PRODUCT_SOURCES = ("coles", "woolworths", "afcd", "usda", "manual")
 
+# The four a snapshot must carry to be usable for arithmetic at all.
 MACRO_KEYS = ("kcal", "protein", "fat", "carbs")
+
+# Carried when the source record has them and absent when it does not, so a
+# record that never stated its fibre cannot be read as one stating zero.
+OPTIONAL_NUTRIENT_KEYS = ("fiber", "sugar")
+
+# Every nutrient a snapshot may carry, in the order everything renders them.
+NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
 
 
 @dataclass(frozen=True)
@@ -23,9 +31,22 @@ class Macros:
     protein: float
     fat: float
     carbs: float
+    fiber: float | None = None
+    sugar: float | None = None
 
     def as_dict(self) -> dict[str, float]:
-        return {key: getattr(self, key) for key in MACRO_KEYS}
+        """Only the nutrients this snapshot has. An absent one is no key.
+
+        Omitted rather than written null: the YAML store and the JSON
+        description both read this, and `fiber: null` in a file invites the
+        next reader to treat it as a number.
+        """
+        values = {key: getattr(self, key) for key in MACRO_KEYS}
+        for key in OPTIONAL_NUTRIENT_KEYS:
+            if getattr(self, key) is not None:
+                values[key] = getattr(self, key)
+
+        return values
 
 
 @dataclass(frozen=True)
@@ -41,17 +62,14 @@ class Product:
     protein: float
     fat: float
     carbs: float
+    fiber: float | None = None
+    sugar: float | None = None
     source: str = ""
     id: str = ""
     brand: str = ""
 
     def macros(self) -> Macros:
-        return Macros(
-            kcal=self.kcal,
-            protein=self.protein,
-            fat=self.fat,
-            carbs=self.carbs,
-        )
+        return Macros(**{key: getattr(self, key) for key in NUTRIENT_KEYS})
 
     def as_dict(self) -> dict[str, Any]:
         return {

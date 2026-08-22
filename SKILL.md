@@ -61,7 +61,9 @@ ingredients:
 ```
 
 Then `recipes resolve "Chicken Bowl" --json` fills in each `name` and
-per-100 g `macros` from the product database and writes the file back.
+per-100 g `macros` from the product database and writes the file back. A
+snapshot always carries `kcal`, `protein`, `fat` and `carbs`, and also
+`fiber` and `sugar` when the record states them.
 
 - Each ingredient it filled in is listed under `resolved`.
 - **Idempotent.** An ingredient that already carries macros is left alone, so
@@ -69,7 +71,9 @@ per-100 g `macros` from the product database and writes the file back.
   needs no product database at all.
 - **`--force`** re-reads every reference. A database that disagrees with a
   frozen snapshot is news, reported under `changes` as
-  `{ref, name, fields: {kcal: {before, after}}}`.
+  `{ref, name, fields: {kcal: {before, after}}}`. An optional nutrient that
+  has appeared or vanished is a change too, with `null` on the side that
+  lacked it: it decides whether the recipe can be totalled for that nutrient.
 - A reference that cannot be resolved and has no snapshot behind it refuses
   the command and writes nothing. Fix the reference, or use `source: manual`.
 - Under `--force`, a reference that misses but already has a snapshot keeps it
@@ -85,7 +89,8 @@ contain a colon.
 {"kind":"recipe","id":"chicken bowl","name":"Chicken Bowl",
  "per_serving":{"kcal":165.0,"protein":31.0,"fat":3.6,"carbs":0.0},
  "complete":true,"detail":{"servings":2,"tags":["dinner"],"notes":"...",
- "ingredients":[...],"total":{...},"unresolved":[],"path":"/…/bowl.yaml"}}
+ "ingredients":[...],"total":{...},"unresolved":[],"missing":{},
+ "path":"/…/bowl.yaml"}}
 ```
 
 Ranked by protein per 100 kcal, ties by name, so a list merged with eatout's
@@ -115,6 +120,23 @@ Treat `complete: false` as a hard stop for any macro decision. A missing value
 is never treated as zero: an inferred zero under-counts every total
 downstream and cannot be told from a real one.
 
+## Totals are all-or-nothing per nutrient
+
+`total` and `per_serving` report a nutrient only when **every** ingredient
+supplied it. A nutrient one ingredient lacks is omitted from both and the
+ingredients that lacked it are named under `macros.missing` (under
+`detail.missing` in a `search` record), the same shape `unresolved` uses:
+
+```json
+{"total":{"kcal":1517.0,"protein":66.6,"fat":30.2,"carbs":247.8,"fiber":10.8},
+ "per_serving":{...},"missing":{"sugar":["coles:2: no sugar"]}}
+```
+
+A partial fibre total silently under-reports, so there is no partial total.
+`complete: true` means the four required macros resolved and nothing more, so
+to decide whether a recipe can answer a question about fibre, check for
+`fiber` in `per_serving` — not `complete`.
+
 ## Where recipes live
 
 One YAML file per recipe in `$XDG_CONFIG_HOME/recipes` (or
@@ -134,7 +156,10 @@ renumbers its catalogue and is useless offline; the snapshot alone cannot be
 refreshed.
 
 Nutrients are per 100 g everywhere, in the database and in the snapshot.
-Totals scale by `grams / 100` at the last step.
+Totals scale by `grams / 100` at the last step. `fiber` and `sugar` are
+written only when the source record stated them and are absent otherwise —
+never `0` and never `null`, because a record that never stated its fibre is
+not one stating zero.
 
 ## fit
 
@@ -155,8 +180,10 @@ defaults to the deployed Plate page,
 `https://mealtime-tools.github.io/plate/`. Set
 the variable to point links at a different deployment.
 
-The link is self-contained and carries resolved values rather than references.
-Plate owns the canonical
+The link is self-contained and carries resolved names and the four required
+macros rather than references; optional nutrients are deliberately left out,
+since the payload is bounded by QR capacity and the viewer displays nothing
+else. Plate owns the canonical
 [wire format](https://github.com/owahltinez/plate#share-url-wire-format) and
 offers "export YAML". This CLI has no `import`.
 

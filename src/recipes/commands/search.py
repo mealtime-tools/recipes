@@ -99,6 +99,9 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
             "notes": recipe.notes,
             "ingredients": ingredient_rows(recipe),
             "total": totals.total if totals else None,
+            # A nutrient no total could report, and the ingredients that are
+            # the reason: absent from `per_serving` is the fact, this is why.
+            "missing": totals.missing if totals else {},
             "unresolved": unresolved(recipe),
             # The file to edit: authoring a recipe is editing its YAML.
             "path": str(stored.path),

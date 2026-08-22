@@ -28,6 +28,7 @@ import yaml
 from recipes.macros import compact_number, parse_servings
 from recipes.models import (
     MACRO_KEYS,
+    OPTIONAL_NUTRIENT_KEYS,
     PRODUCT_SOURCES,
     Ingredient,
     Macros,
@@ -110,7 +111,15 @@ def _macros_from(raw: Any, ref: str) -> Macros | None:
     if missing:
         raise StoreError(f"{ref}: macros missing {', '.join(missing)}")
 
-    return Macros(**{key: float(raw[key]) for key in MACRO_KEYS})
+    values = {key: float(raw[key]) for key in MACRO_KEYS}
+
+    # An optional nutrient the file does not state stays unstated, rather
+    # than becoming a zero the next total would report as sourced.
+    for key in OPTIONAL_NUTRIENT_KEYS:
+        if raw.get(key) is not None:
+            values[key] = float(raw[key])
+
+    return Macros(**values)
 
 
 def _ingredient_from(raw: Any) -> Ingredient:
