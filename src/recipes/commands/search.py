@@ -84,6 +84,11 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
     incomplete recipe publishes no macro rather than an understated one. The
     id is the recipe's identity key, which `show`, `fit`, `share` and
     `resolve` all accept as a name.
+
+    `per_serving` appears twice on purpose: the shared record's copy is what
+    an orchestrator ranks and filters on, and agentcli fixes its keys at the
+    four macros; `detail.per_serving` is this recipe's own answer, fibre
+    included.
     """
     recipe = stored.recipe
     totals = recipe_macros(recipe) if is_complete(recipe) else None
@@ -99,6 +104,16 @@ def _candidate_of(stored: store.Stored) -> dict[str, Any]:
             "notes": recipe.notes,
             "ingredients": ingredient_rows(recipe),
             "total": totals.total if totals else None,
+            # The shared record above is agentcli's, and it carries the four
+            # macros it defines and no more, so every nutrient this recipe can
+            # report is published here as well. Without it a caller wanting
+            # fibre per serving would divide a total by `servings` itself,
+            # which is the hand-arithmetic this tool exists to own.
+            "per_serving": dict(totals.per_serving) if totals else None,
+            # A nutrient no total could report, and the ingredients that are
+            # the reason: absent from `detail.per_serving` is the fact, and
+            # this is why.
+            "missing": totals.missing if totals else {},
             "unresolved": unresolved(recipe),
             # The file to edit: authoring a recipe is editing its YAML.
             "path": str(stored.path),
@@ -136,7 +151,12 @@ def _human(payload: dict[str, Any]) -> Iterable[str]:
         servings = record["detail"]["servings"]
         plural = "" if servings == 1 else "s"
         yield f"{record['name']}  ({servings} serving{plural})"
-        yield f"  per serving  {macro_summary(record['per_serving'])}"
+        # This recipe's own figures, not the shared record's four: a person
+        # reading the ranked list would otherwise conclude a recipe has no
+        # fibre where `show` prints it, and go and divide a total by hand.
+        yield (
+            f"  per serving  {macro_summary(record['detail']['per_serving'])}"
+        )
 
     for item in payload["skipped_incomplete"]:
         missing = "; ".join(item["unresolved"])

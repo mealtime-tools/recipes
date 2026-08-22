@@ -60,6 +60,64 @@ def test_recipe_encodes_to_the_pinned_payload() -> None:
     assert encode_payload(payload_of(recipe)) == case["encoded"]
 
 
+def test_an_optional_nutrient_never_widens_the_payload() -> None:
+    """Plate owns this format and a QR code pays for every field once per
+    ingredient, so a snapshot carrying fibre encodes to the same six-element
+    row as one without it.
+
+    Pinned against the three-ingredient, two-serving vector, with fibre and
+    sugar on every snapshot: a widening that only fires past the first row, or
+    only for a multi-ingredient recipe, or only for a recipe with servings, is
+    a widening, and the single-ingredient vector cannot see any of them.
+
+    The cost is stated out loud by the last assertion. A share link cannot
+    carry fibre home, and `resolve` cannot restore it, because a link's
+    ingredients come back as `manual` and refer to no record.
+    """
+    case = next(
+        c for c in VECTORS["cases"] if c["label"] == "servings-and-notes"
+    )
+    rows = (
+        ("Pizza Dough", 475, 268.0, 8.9, 3.1, 49.2),
+        ("Passata", 100, 34.0, 1.6, 0.2, 6.4),
+        ("Mozzarella", 75, 280.0, 22.0, 21.0, 1.5),
+    )
+    recipe = Recipe(
+        name="Sourdough Pizza",
+        servings=2,
+        notes="Stretch cold, from the edges.\nBake 8 min at max heat.",
+        ingredients=[
+            Ingredient(
+                source="coles",
+                id=str(number),
+                grams=grams,
+                name=name,
+                macros=Macros(
+                    kcal=kcal,
+                    protein=protein,
+                    fat=fat,
+                    carbs=carbs,
+                    fiber=1.5 + number,
+                    sugar=0.5 + number,
+                ),
+            )
+            for number, (name, grams, kcal, protein, fat, carbs) in enumerate(
+                rows
+            )
+        ],
+    )
+
+    assert payload_of(recipe) == case["payload"]
+    assert encode_payload(payload_of(recipe)) == case["encoded"]
+
+    restored = recipe_from_payload(decode_payload(case["encoded"]))
+    assert [item.macros.fiber for item in restored.ingredients] == [
+        None,
+        None,
+        None,
+    ]
+
+
 def test_share_url_round_trips_a_whole_recipe() -> None:
     recipe = Recipe(
         name="Sourdough Pizza",

@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from recipes import store
-from recipes.models import MACRO_KEYS, Ingredient, ProductLookup, Recipe
+from recipes.models import NUTRIENT_KEYS, Ingredient, ProductLookup, Recipe
 
 
 @dataclass(frozen=True)
@@ -61,13 +61,16 @@ def _changed_fields(before: Ingredient, after: Ingredient) -> dict[str, dict]:
     """Which stored fields the database now disagrees with.
 
     Only called for an ingredient that already carried a snapshot, so every
-    field here is a disagreement rather than a first reading.
+    field here is a disagreement rather than a first reading. An optional
+    nutrient appearing or vanishing is one: it decides whether the recipe can
+    be totalled for that nutrient at all, so it is reported with `None` on
+    whichever side of the change lacked it.
     """
     fields: dict[str, dict] = {}
     if before.name != after.name:
         fields["name"] = {"before": before.name, "after": after.name}
 
-    for key in MACRO_KEYS:
+    for key in NUTRIENT_KEYS:
         old, new = getattr(before.macros, key), getattr(after.macros, key)
         if old != new:
             fields[key] = {"before": old, "after": new}

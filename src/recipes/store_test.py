@@ -55,6 +55,44 @@ def test_an_unresolved_ingredient_stays_unresolved(tmp_path) -> None:
     assert store.load_recipe(path).ingredients[1].macros is None
 
 
+def latte() -> Recipe:
+    """A snapshot carrying fibre, from a record that knew no sugar."""
+    return Recipe(
+        name="Soy Latte",
+        ingredients=[
+            Ingredient(
+                source="coles",
+                id="4499631",
+                grams=250,
+                name="Soy Milk",
+                macros=Macros(
+                    kcal=42.0, protein=3.0, fat=1.6, carbs=3.3, fiber=0.2
+                ),
+            )
+        ],
+    )
+
+
+def test_an_optional_nutrient_round_trips(tmp_path) -> None:
+    """What pantry knew must survive the file it was written to."""
+    path = tmp_path / "latte.yaml"
+    store.write(path, latte())
+
+    assert "fiber: 0.2" in path.read_text()
+    assert store.load_recipe(path) == latte()
+
+
+def test_an_optional_nutrient_the_record_lacked_is_not_written(
+    tmp_path,
+) -> None:
+    """No key rather than a zero: a real 0 g of sugar is a different fact."""
+    path = tmp_path / "latte.yaml"
+    store.write(path, latte())
+
+    assert "sugar" not in path.read_text()
+    assert store.load_recipe(path).ingredients[0].macros.sugar is None
+
+
 def test_a_hand_written_ingredient_needs_only_a_reference(tmp_path) -> None:
     """What an agent writes: intent, with no macro number by hand."""
     path = tmp_path / "bowl.yaml"
@@ -66,6 +104,30 @@ def test_a_hand_written_ingredient_needs_only_a_reference(tmp_path) -> None:
     assert (recipe.name, recipe.servings) == ("Chicken Bowl", 2)
     assert (item.source, item.id, item.grams) == ("coles", "1047", 200.0)
     assert (item.name, item.macros) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("stated", "broken", "named"),
+    [
+        # The optional nutrient, in both spellings a total cannot survive.
+        ("fiber: 0.2", "fiber: .nan", "fiber"),
+        ("fiber: 0.2", "fiber: .inf", "fiber"),
+        # And a required macro: the rule is about every nutrient, not the two
+        # this file learned to read most recently.
+        ("kcal: 42.0", "kcal: .nan", "kcal"),
+        ("kcal: 42.0", "kcal: -.inf", "kcal"),
+    ],
+)
+def test_a_nutrient_that_is_not_finite_is_refused_at_ingress(
+    tmp_path, stated: str, broken: str, named: str
+) -> None:
+    """`.nan` and `.inf` are readable YAML floats that no total survives."""
+    path = tmp_path / "latte.yaml"
+    store.write(path, latte())
+    path.write_text(path.read_text().replace(stated, broken))
+
+    with pytest.raises(store.StoreError, match=f"not finite: {named}"):
+        store.load_recipe(path)
 
 
 def test_an_unknown_source_is_refused_at_ingress(tmp_path) -> None:

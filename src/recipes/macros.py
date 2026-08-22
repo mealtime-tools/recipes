@@ -6,9 +6,14 @@ second implementation that treated a missing snapshot as zero.
 """
 
 import math
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
-from recipes.models import MACRO_KEYS, Ingredient, Recipe
+from recipes.models import (
+    NUTRIENT_KEYS,
+    OPTIONAL_NUTRIENT_KEYS,
+    Ingredient,
+    Recipe,
+)
 
 # A recipe is always at least one serving, so a label never divides by zero.
 MIN_SERVINGS = 1
@@ -72,19 +77,53 @@ def is_complete(recipe: Recipe) -> bool:
     return bool(recipe.ingredients) and not unresolved(recipe)
 
 
+def _missing_from(
+    stated: list[tuple[str, dict[str, float]]],
+) -> dict[str, list[str]]:
+    """Name, per optional nutrient, every ingredient that does not state it.
+
+    The same shape as `unresolved`, one level down: a nutrient only three of
+    six ingredients state cannot be totalled, and the useful answer is which
+    three, not a number that quietly under-reports the recipe.
+
+    Takes the nutrients each ingredient states rather than the ingredients,
+    so the caller can hand over the very dicts it is about to sum. Asking a
+    snapshot's fields here instead would be a second rule that has to agree
+    with `as_dict`, and the failure when they disagree is a `KeyError` from a
+    total summing a key this said was there.
+    """
+    missing: dict[str, list[str]] = {}
+    for key in OPTIONAL_NUTRIENT_KEYS:
+        absent = [
+            f"{ref}: no {key}" for ref, values in stated if key not in values
+        ]
+        if absent:
+            missing[key] = absent
+
+    return missing
+
+
 def ingredient_macros(item: Ingredient) -> dict[str, float]:
-    """Scale one frozen per-100 g snapshot by the amount used."""
+    """Scale one frozen per-100 g snapshot by the amount used.
+
+    Only the nutrients that snapshot carries: an absent one is not a zero.
+    """
     if item.macros is None:
         raise ValueError(f"{item.ref}: no macro snapshot")
 
     factor = item.grams / 100
-    return {key: getattr(item.macros, key) * factor for key in MACRO_KEYS}
+    return {
+        key: value * factor for key, value in item.macros.as_dict().items()
+    }
 
 
 @dataclass(frozen=True)
 class RecipeMacros:
     total: dict[str, float]
     per_serving: dict[str, float]
+    # Why a nutrient is absent from both totals, keyed by nutrient. Empty for
+    # a recipe every ingredient of which carried every nutrient.
+    missing: dict[str, list[str]] = field(default_factory=dict)
 
 
 def recipe_macros(recipe: Recipe) -> RecipeMacros:
@@ -94,16 +133,26 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
         raise IncompleteRecipe(recipe, errors or ["recipe has no ingredients"])
 
     servings = parse_servings(recipe.servings)
-    totals = {key: 0.0 for key in MACRO_KEYS}
-    for item in recipe.ingredients:
-        for key, value in ingredient_macros(item).items():
-            totals[key] += value
+
+    # All or nothing per nutrient: one ingredient that never stated its fibre
+    # makes a fibre total an under-report, which is worse than no total.
+    # Scaled once, then both decided and summed from the same dicts, so what
+    # counts as stated and what gets added up cannot come apart.
+    scaled = [
+        (item.ref, ingredient_macros(item)) for item in recipe.ingredients
+    ]
+    missing = _missing_from(scaled)
+    totals = {key: 0.0 for key in NUTRIENT_KEYS if key not in missing}
+    for _, values in scaled:
+        for key in totals:
+            totals[key] += values[key]
 
     return RecipeMacros(
         total={key: round_js(value) for key, value in totals.items()},
         per_serving={
             key: round_js(value / servings) for key, value in totals.items()
         },
+        missing=missing,
     )
 
 
