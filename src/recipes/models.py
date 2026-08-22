@@ -71,14 +71,13 @@ class Product:
     def macros(self, grams: float | None = None) -> Macros:
         factor = (grams or self.grams or 100) / (self.grams or 100)
         return Macros(
-            **{
-                key: (
-                    getattr(self, key) * factor
-                    if getattr(self, key) is not None
-                    else None
-                )
-                for key in NUTRIENT_KEYS
-            }
+            kcal=self.kcal * factor,
+            protein=self.protein * factor,
+            fat=self.fat * factor,
+            carbs=self.carbs * factor,
+            fiber=self.fiber * factor if self.fiber is not None else None,
+            sodium=self.sodium * factor if self.sodium is not None else None,
+            sugar=self.sugar * factor if self.sugar is not None else None,
         )
 
     def as_dict(self) -> dict[str, Any]:

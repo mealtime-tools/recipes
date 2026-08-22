@@ -78,7 +78,7 @@ def is_complete(recipe: Recipe) -> bool:
 
 
 def _absent_from(
-    stated: list[tuple[str, dict[str, float]]],
+    stated: list[tuple[str, dict[str, float | None]]],
 ) -> set[str]:
     """Every optional nutrient at least one ingredient does not state.
 
