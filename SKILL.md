@@ -90,7 +90,7 @@ contain a colon.
  "per_serving":{"kcal":165.0,"protein":31.0,"fat":3.6,"carbs":0.0},
  "complete":true,"detail":{"servings":2,"tags":["dinner"],"notes":"...",
  "ingredients":[...],"total":{...},"per_serving":{...},"unresolved":[],
- "missing":{},"path":"/…/bowl.yaml"}}
+ "path":"/…/bowl.yaml"}}
 ```
 
 Ranked by protein per 100 kcal, ties by name, so a list merged with eatout's
@@ -125,14 +125,15 @@ downstream and cannot be told from a real one.
 ## Totals are all-or-nothing per nutrient
 
 `total` and `per_serving` report a nutrient only when **every** ingredient
-supplied it. A nutrient one ingredient lacks is omitted from both and the
-ingredients that lacked it are named under `macros.missing`, the same shape
-`unresolved` uses:
+supplied it. A nutrient one ingredient lacks is omitted from both, and its
+absence from the keys is how you know:
 
 ```json
 {"total":{"kcal":1517.0,"protein":66.6,"fat":30.2,"carbs":247.8,"fiber":10.8},
- "per_serving":{...},"missing":{"sugar":["coles:2: no sugar"]}}
+ "per_serving":{...}}
 ```
+
+Sugar is absent above because at least one ingredient never stated it.
 
 A partial fibre total silently under-reports, so there is no partial total.
 `complete: true` means the four required macros resolved and nothing more, so
@@ -140,10 +141,10 @@ to decide whether a recipe can answer a question about fibre, look for `fiber`
 in the per-serving figures — not `complete`.
 
 Which figures depends on the command. `show`, `resolve` and `fit` return
-`macros.total`, `macros.per_serving` and `macros.missing`, all of which carry
-every nutrient. A `search` record's top-level `per_serving` is agentcli's
-shared shape and is **always** exactly the four macros, so read
-`detail.per_serving`, `detail.total` and `detail.missing` there instead. Never
+`macros.total` and `macros.per_serving`, both of which carry every nutrient.
+A `search` record's top-level `per_serving` is agentcli's shared shape and is
+**always** exactly the four macros, so read `detail.per_serving` and
+`detail.total` there instead. Never
 divide a total by `servings` yourself; a per-serving figure is always
 published.
 

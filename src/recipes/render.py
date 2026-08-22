@@ -46,10 +46,6 @@ def describe(recipe: Recipe) -> dict:
             {
                 "total": macros.total,
                 "per_serving": macros.per_serving,
-                # Which nutrients the totals leave out, and the ingredients
-                # that are the reason: `complete` is about the four required
-                # macros, so this is how a caller filtering on fibre can tell.
-                "missing": macros.missing,
             }
             if macros
             else None
