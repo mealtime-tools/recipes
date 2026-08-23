@@ -2,7 +2,7 @@
 # `recipes` is taken on PyPI, so the distribution is prefixed. The import
 # stays `recipes`.
 name = "mealtime-recipes"
-version = "0.2.1"
+version = "0.2.2"
 description = "Edit, view, resolve, and share local recipes."
 readme = "README.md"
 license = "MIT"
