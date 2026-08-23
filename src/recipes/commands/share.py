@@ -24,7 +24,7 @@ from recipes.viewer import viewer_url
 def share(name: str, directory: Path | None, json_output: bool) -> None:
     """Print a link that carries the whole of NAME, resolvable by nobody.
 
-    The link points at the deployed Plate page; set $RECIPES_VIEWER_URL to
+    The link points at the deployed Plate page; export $RECIPES_VIEWER_URL to
     point it at your own deployment instead.
     """
     recipe = require_recipe(directory, name).recipe

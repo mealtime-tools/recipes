@@ -67,7 +67,6 @@ dependencies = [
     { name = "click" },
     { name = "click-agentcli" },
     { name = "mealtime-pantry" },
-    { name = "python-dotenv" },
     { name = "pyyaml" },
 ]
 
@@ -82,7 +81,6 @@ requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "click-agentcli", specifier = ">=0.1.0" },
     { name = "mealtime-pantry", specifier = ">=0.1.0" },
-    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 

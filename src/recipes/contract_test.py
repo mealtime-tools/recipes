@@ -1,6 +1,9 @@
 """Small tests for the behavior other tools rely on."""
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -12,6 +15,11 @@ from recipes.models import Ingredient, Macros, Recipe
 from recipes.products import product_from_record
 from recipes.render import describe
 from recipes.store import load_recipe, write
+from recipes.viewer import DEFAULT_VIEWER_URL, ENV_VAR, viewer_url
+
+_PRINT_VIEWER_URL = (
+    "from recipes.viewer import viewer_url; print(viewer_url())"
+)
 
 
 def test_product_records_accept_canonical_names_and_preserve_zero() -> None:
@@ -119,6 +127,58 @@ def test_edit_appends_a_piped_item(tmp_path: Path) -> None:
         Path(json.loads(result.output)["data"]["path"])
     ).ingredients[0]
     assert ingredient.macros.protein == 20
+
+
+def test_viewer_url_ignores_a_dotenv_on_the_cwd_discovery_branch(
+    tmp_path: Path,
+) -> None:
+    # python-dotenv resolves `.env` from the working directory only on its
+    # interactive branch, which a `-c` invocation takes. An installed console
+    # script takes the other branch and walks up from the package directory
+    # instead, which is the path that retargeted links in the reported bug.
+    # This covers the cwd branch, the half that is cheap to reach hermetically;
+    # `test_resolving_the_viewer_url_never_loads_a_dotenv_file` guards the
+    # other half, which would otherwise need a throwaway install.
+    (tmp_path / ".env").write_text(f"{ENV_VAR}=https://stale.test/plate/\n")
+    workdir = tmp_path / "recipes"
+    workdir.mkdir()
+    env = {k: v for k, v in os.environ.items() if k != ENV_VAR}
+
+    printed = subprocess.run(
+        [sys.executable, "-c", _PRINT_VIEWER_URL],
+        cwd=workdir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    assert printed == DEFAULT_VIEWER_URL
+
+
+def test_resolving_the_viewer_url_never_loads_a_dotenv_file() -> None:
+    # The bug was install-dir-relative: the upward walk started at the package
+    # directory, so a `.env` above the install location retargeted every link
+    # regardless of the working directory. Relocating the package to reproduce
+    # that needs a throwaway install, so assert the root cause instead --
+    # resolving the URL must not reach python-dotenv at all.
+    probe = "import recipes.viewer, sys; print('dotenv' in sys.modules)"
+    printed = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    assert printed == "False"
+
+
+def test_viewer_url_reads_the_process_environment() -> None:
+    assert viewer_url({ENV_VAR: "https://mine.test/plate/"}) == (
+        "https://mine.test/plate/"
+    )
+    assert viewer_url({ENV_VAR: "  "}) == DEFAULT_VIEWER_URL
+    assert viewer_url({}) == DEFAULT_VIEWER_URL
 
 
 def test_share_codec_round_trips_current_format() -> None:
