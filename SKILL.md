@@ -17,5 +17,6 @@ recipes share NAME --json
 Use `--dir PATH` only when the user supplied a different recipe directory.
 `resolve` refreshes Pantry product snapshots. `share` returns a self-contained
 Plate URL. `edit --input` appends one flat Pantry, Eatout, Recipes, or Nutrilog
-item with all four core nutrients. Nutrients describe the stated `grams`, or
-100 g when `grams` is absent. Missing nutrients remain `null`.
+item with all four core nutrients and a positive `grams` naming the weight
+they describe, which for per-100 g figures is `100`. An item stating no
+`grams` is refused. Missing nutrients remain `null`.

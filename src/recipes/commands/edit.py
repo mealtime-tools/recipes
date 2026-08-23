@@ -38,6 +38,27 @@ def _input_item(stream: TextIO) -> dict[str, Any]:
     return item
 
 
+def _grams(item: dict[str, Any]) -> float:
+    """The weight the piped nutrients describe. Never inferred."""
+    stated = item.get("grams")
+    if stated is None:
+        raise UsageError(
+            "input states no grams: state the weight these figures "
+            "describe; to record a different portion, scale the figures "
+            "to it or add the ingredient by reference and run resolve"
+        )
+
+    if (
+        isinstance(stated, bool)
+        or not isinstance(stated, (int, float))
+        or not math.isfinite(stated)
+        or stated <= 0
+    ):
+        raise UsageError("grams must be a positive finite number")
+
+    return float(stated)
+
+
 def _ingredient(item: dict[str, Any]) -> Ingredient:
     missing = [key for key in MACRO_KEYS if item.get(key) is None]
     if missing:
@@ -55,15 +76,6 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
             raise UsageError(f"{key} must be non-negative and finite")
         values[key] = float(value)
 
-    grams = item.get("grams") or 100
-    if (
-        isinstance(grams, bool)
-        or not isinstance(grams, (int, float))
-        or not math.isfinite(grams)
-        or grams <= 0
-    ):
-        raise UsageError("grams must be a positive finite number")
-
     source = str(item.get("source") or "manual")
     if source not in PRODUCT_SOURCES:
         source = "manual"
@@ -71,7 +83,7 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
     return Ingredient(
         source=source,
         id=str(item.get("id") or name),
-        grams=float(grams),
+        grams=_grams(item),
         name=name,
         macros=Macros(**values),
     )
@@ -96,14 +108,17 @@ def edit(
 ) -> None:
     """Edit NAME, creating a minimal YAML recipe when it does not exist."""
     root = resolve_dir(directory)
+    # Read before anything is written, so a refusal leaves the directory as is.
+    appended = None
+    if input_file is not None:
+        appended = _ingredient(_input_item(input_file))
+
     stored = store.find(root, name)
     path = stored.path if stored else store.path_for(root, name)
-    if stored is None:
-        store.write(path, Recipe(name=name))
 
-    if input_file is not None:
-        recipe = store.load_recipe(path)
-        recipe.ingredients.append(_ingredient(_input_item(input_file)))
+    if appended is not None:
+        recipe = stored.recipe if stored else Recipe(name=name)
+        recipe.ingredients.append(appended)
         store.write(path, recipe)
         emit(
             {**describe(recipe), "path": str(path)},
@@ -111,6 +126,9 @@ def edit(
             human=lambda result: [result["path"]],
         )
         return
+
+    if stored is None:
+        store.write(path, Recipe(name=name))
 
     click.edit(filename=str(path))
     recipe = store.load_recipe(path)
