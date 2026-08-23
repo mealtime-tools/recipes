@@ -69,7 +69,10 @@ class Product:
     grams: float | None = None
 
     def macros(self, grams: float | None = None) -> Macros:
-        factor = (grams or self.grams or 100) / (self.grams or 100)
+        """Nutrients for `grams`, or the record's own figures unscaled."""
+        # Pantry's format: a record with no weight states per-100 g figures.
+        basis = self.grams or 100.0
+        factor = (grams or basis) / basis
         return Macros(
             kcal=self.kcal * factor,
             protein=self.protein * factor,
