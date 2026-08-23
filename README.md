@@ -15,5 +15,7 @@ Recipes live in `~/.config/recipes` by default. Pass `--dir` to any command to
 use another directory. Missing nutrient values are `null`; an explicit zero
 remains zero. JSON food items are flat. Share links keep the
 compressed `#r=` format understood by Plate; the payload uses the same fields.
-Ingredient nutrients describe their `grams`; recipe output describes one
-recipe serving and can be piped directly to Nutrilog.
+Ingredient nutrients describe their `grams`, or 100 g when `grams` is absent;
+because nutrition sources publish per 100 g, scale their figures to the portion
+before appending one. Recipe output describes one recipe serving and can be
+piped directly to Nutrilog.

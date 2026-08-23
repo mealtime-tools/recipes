@@ -20,6 +20,10 @@ from recipes.models import (
 )
 from recipes.render import describe
 
+# Rounding in published tables, and foods that are nearly pure macronutrient,
+# can put the sum a little over the weight with nothing actually wrong.
+_MASS_SLACK = 1.05
+
 
 def _input_item(stream: TextIO) -> dict[str, Any]:
     try:
@@ -36,6 +40,27 @@ def _input_item(stream: TextIO) -> dict[str, Any]:
     if isinstance(item.get("product"), dict):
         item = item["product"]
     return item
+
+
+def _warn_if_overweight(
+    name: str, grams: float, values: dict[str, float | None]
+) -> None:
+    """Flag nutrients that cannot belong to a portion this small.
+
+    Nutrition sources publish per 100 g, so pasting one beside a real portion
+    weight silently inflates the recipe. Protein, fat and carbohydrate cannot
+    outweigh the food holding them, which is what that mistake implies.
+    """
+    mass = sum(values[key] or 0 for key in ("protein", "fat", "carbs"))
+    if mass <= grams * _MASS_SLACK:
+        return
+
+    click.echo(
+        f"warning: {name} lists {mass:g} g of protein, fat and carbs in a "
+        f"{grams:g} g portion. Nutrients must describe the stated grams, "
+        "not 100 g; scale them to the portion or drop `grams`.",
+        err=True,
+    )
 
 
 def _ingredient(item: dict[str, Any]) -> Ingredient:
@@ -68,6 +93,7 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
     if source not in PRODUCT_SOURCES:
         source = "manual"
     name = str(item.get("name") or item.get("title") or "Ingredient")
+    _warn_if_overweight(name, float(grams), values)
     return Ingredient(
         source=source,
         id=str(item.get("id") or name),
@@ -83,7 +109,11 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
     "--input",
     "input_file",
     type=click.File("r", encoding="utf-8"),
-    help="Append one JSON item from PATH, or '-' for stdin.",
+    help=(
+        "Append one JSON item from PATH, or '-' for stdin. Its nutrients "
+        "must describe its own 'grams', or 100 g when 'grams' is absent: "
+        "sources publish per 100 g, so scale them to the portion first."
+    ),
 )
 @dir_option
 @json_option

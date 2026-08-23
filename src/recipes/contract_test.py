@@ -121,6 +121,53 @@ def test_edit_appends_a_piped_item(tmp_path: Path) -> None:
     assert ingredient.macros.protein == 20
 
 
+def test_edit_warns_when_nutrients_outweigh_the_portion(
+    tmp_path: Path,
+) -> None:
+    """Per-100 g figures pasted beside a real portion weight, the usual trap."""
+    item = {
+        "name": "Buckwheat flour",
+        "grams": 42,
+        "kcal": 364,
+        "protein": 13.2,
+        "fat": 3.4,
+        "carbs": 69.0,
+    }
+    result = CliRunner().invoke(
+        main,
+        ["edit", "Pancakes", "--dir", str(tmp_path), "--input", "-", "--json"],
+        input=json.dumps(item),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "100 g" in result.stderr, result.stderr
+    # The warning informs, it never blocks, and `--json` keeps stdout to one
+    # object: the item is still appended exactly as it was given.
+    payload = json.loads(result.stdout)["data"]
+    assert load_recipe(Path(payload["path"])).ingredients[0].macros.kcal == 364
+
+
+def test_edit_stays_quiet_when_nutrients_fit_the_portion(
+    tmp_path: Path,
+) -> None:
+    item = {
+        "name": "Buckwheat flour",
+        "grams": 42,
+        "kcal": 153,
+        "protein": 5.5,
+        "fat": 1.4,
+        "carbs": 29.0,
+    }
+    result = CliRunner().invoke(
+        main,
+        ["edit", "Pancakes", "--dir", str(tmp_path), "--input", "-", "--json"],
+        input=json.dumps(item),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert result.stderr == ""
+
+
 def test_share_codec_round_trips_current_format() -> None:
     recipe = Recipe(
         name="Toast",
