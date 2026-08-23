@@ -21,8 +21,25 @@ from recipes.models import (
 from recipes.render import describe
 
 # Rounding in published tables, and foods that are nearly pure macronutrient,
-# can put the sum a little over the weight with nothing actually wrong.
+# can put the sum a little over the weight with nothing actually wrong. The
+# absolute term keeps sub-2 g portions quiet, where a tenth of a gram of
+# rounding is already worth more than the proportional slack.
 _MASS_SLACK = 1.05
+_MASS_GRACE_G = 0.5
+
+# Pure fat, around 900 kcal per 100 g, is the densest food there is. Checked
+# separately from the macro masses because ethanol carries energy that no
+# macronutrient accounts for: a spirit is 0 g of macros and far from 0 kcal.
+_MAX_KCAL_PER_100G = 900
+
+# Named once: both warnings end with it, and it is the whole point of them.
+# "Drop `grams`" is deliberately absent -- for a 42 g portion of a per-100 g
+# source, dropping `grams` keeps the same wrong numbers and silences the
+# warning, which is the original bug wearing a different hat.
+_RULE = (
+    "nutrients must describe the stated grams, so scale a per-100 g source "
+    "to the portion; omit `grams` only when the portion really is 100 g"
+)
 
 
 def _input_item(stream: TextIO) -> dict[str, Any]:
@@ -42,25 +59,36 @@ def _input_item(stream: TextIO) -> dict[str, Any]:
     return item
 
 
-def _warn_if_overweight(
-    name: str, grams: float, values: dict[str, float | None]
-) -> None:
-    """Flag nutrients that cannot belong to a portion this small.
+def _implausible(item: Ingredient) -> list[str]:
+    """Nutrients that cannot describe a portion this small.
 
-    Nutrition sources publish per 100 g, so pasting one beside a real portion
-    weight silently inflates the recipe. Protein, fat and carbohydrate cannot
-    outweigh the food holding them, which is what that mistake implies.
+    Sources publish per 100 g, so passing their figures beside a real portion
+    weight silently multiplies the ingredient. Two independent bounds catch
+    it: macronutrients cannot outweigh the food holding them, and nothing is
+    denser in energy than pure fat. Neither is exhaustive -- a plausible
+    number can still be the wrong one -- so these warn and never refuse.
     """
-    mass = sum(values[key] or 0 for key in ("protein", "fat", "carbs"))
-    if mass <= grams * _MASS_SLACK:
-        return
+    if item.macros is None:
+        return []
 
-    click.echo(
-        f"warning: {name} lists {mass:g} g of protein, fat and carbs in a "
-        f"{grams:g} g portion. Nutrients must describe the stated grams, "
-        "not 100 g; scale them to the portion or drop `grams`.",
-        err=True,
+    warnings: list[str] = []
+    mass = sum(
+        getattr(item.macros, key) or 0 for key in ("protein", "fat", "carbs")
     )
+    if mass > item.grams * _MASS_SLACK + _MASS_GRACE_G:
+        warnings.append(
+            f"{item.name}: {mass:g} g of protein, fat and carbs in a "
+            f"{item.grams:g} g portion; {_RULE}"
+        )
+
+    density = (item.macros.kcal or 0) / item.grams * 100
+    if density > _MAX_KCAL_PER_100G:
+        warnings.append(
+            f"{item.name}: {density:.0f} kcal per 100 g, denser than pure "
+            f"fat; {_RULE}"
+        )
+
+    return warnings
 
 
 def _ingredient(item: dict[str, Any]) -> Ingredient:
@@ -93,7 +121,6 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
     if source not in PRODUCT_SOURCES:
         source = "manual"
     name = str(item.get("name") or item.get("title") or "Ingredient")
-    _warn_if_overweight(name, float(grams), values)
     return Ingredient(
         source=source,
         id=str(item.get("id") or name),
@@ -111,8 +138,8 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
     type=click.File("r", encoding="utf-8"),
     help=(
         "Append one JSON item from PATH, or '-' for stdin. Its nutrients "
-        "must describe its own 'grams', or 100 g when 'grams' is absent: "
-        "sources publish per 100 g, so scale them to the portion first."
+        "must describe its own 'grams'; sources publish per 100 g, so scale "
+        "them to the portion. Omitting 'grams' means a 100 g portion."
     ),
 )
 @dir_option
@@ -133,10 +160,21 @@ def edit(
 
     if input_file is not None:
         recipe = store.load_recipe(path)
-        recipe.ingredients.append(_ingredient(_input_item(input_file)))
+        ingredient = _ingredient(_input_item(input_file))
+        warnings = _implausible(ingredient)
+        recipe.ingredients.append(ingredient)
         store.write(path, recipe)
+
+        # Like `resolve`, `--json` carries its diagnostics in the payload: the
+        # caller who pipes this is the one who needs them, and stderr is not
+        # where they are looking. A human gets them on stderr instead, so
+        # stdout stays the one path a shell can consume.
+        if not json_output:
+            for warning in warnings:
+                click.echo(f"warning: {warning}", err=True)
+
         emit(
-            {**describe(recipe), "path": str(path)},
+            {**describe(recipe), "path": str(path), "warnings": warnings},
             json_output=json_output,
             human=lambda result: [result["path"]],
         )

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import yaml
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 
 from recipes.cli import main
 from recipes.codec import decode_payload, encode_payload, share_url
@@ -121,51 +121,126 @@ def test_edit_appends_a_piped_item(tmp_path: Path) -> None:
     assert ingredient.macros.protein == 20
 
 
-def test_edit_warns_when_nutrients_outweigh_the_portion(
-    tmp_path: Path,
-) -> None:
-    """Per-100 g figures pasted beside a real portion weight, the usual trap."""
-    item = {
-        "name": "Buckwheat flour",
-        "grams": 42,
-        "kcal": 364,
-        "protein": 13.2,
-        "fat": 3.4,
-        "carbs": 69.0,
-    }
-    result = CliRunner().invoke(
+def _append(tmp_path: Path, item: dict, *json_flag: str) -> Result:
+    return CliRunner().invoke(
         main,
-        ["edit", "Pancakes", "--dir", str(tmp_path), "--input", "-", "--json"],
+        [
+            "edit",
+            "Pancakes",
+            "--dir",
+            str(tmp_path),
+            "--input",
+            "-",
+            *json_flag,
+        ],
         input=json.dumps(item),
     )
 
+
+def test_edit_reports_nutrients_outweighing_the_portion_in_json(
+    tmp_path: Path,
+) -> None:
+    """The reported failure: per-100 g figures beside a real portion weight.
+
+    The victim consumes `--json`, so the warning has to be in the payload;
+    on stderr it would not reach them.
+    """
+    result = _append(
+        tmp_path,
+        {
+            "name": "Buckwheat flour",
+            "grams": 42,
+            "kcal": 364,
+            "protein": 13.2,
+            "fat": 3.4,
+            "carbs": 69.0,
+        },
+        "--json",
+    )
+
     assert result.exit_code == 0, result.output
-    assert "100 g" in result.stderr, result.stderr
-    # The warning informs, it never blocks, and `--json` keeps stdout to one
-    # object: the item is still appended exactly as it was given.
     payload = json.loads(result.stdout)["data"]
+    assert len(payload["warnings"]) == 1, payload["warnings"]
+    assert "42 g" in payload["warnings"][0]
+    # Warning, not refusal, and the numbers are stored as given: which of the
+    # two the caller meant to change is not something this command can know.
     assert load_recipe(Path(payload["path"])).ingredients[0].macros.kcal == 364
 
 
-def test_edit_stays_quiet_when_nutrients_fit_the_portion(
+def test_edit_reports_energy_no_macronutrient_can_account_for(
     tmp_path: Path,
 ) -> None:
-    item = {
-        "name": "Buckwheat flour",
-        "grams": 42,
-        "kcal": 153,
-        "protein": 5.5,
-        "fat": 1.4,
-        "carbs": 29.0,
-    }
-    result = CliRunner().invoke(
-        main,
-        ["edit", "Pancakes", "--dir", str(tmp_path), "--input", "-", "--json"],
-        input=json.dumps(item),
+    """Alcohol carries energy the macro masses cannot bound. AFCD ships it."""
+    result = _append(
+        tmp_path,
+        {
+            "name": "Vodka",
+            "grams": 20,
+            "kcal": 213.2,
+            "protein": 0,
+            "fat": 0,
+            "carbs": 0.1,
+        },
+        "--json",
     )
 
     assert result.exit_code == 0, result.output
-    assert result.stderr == ""
+    warnings = json.loads(result.stdout)["data"]["warnings"]
+    assert len(warnings) == 1, warnings
+    assert "kcal" in warnings[0]
+
+
+def test_edit_reports_no_warnings_for_nutrients_that_fit_the_portion(
+    tmp_path: Path,
+) -> None:
+    """Correctly scaled values, and a 1.6 g portion where rounding dominates."""
+    fitting = (
+        {
+            "name": "Buckwheat flour",
+            "grams": 42,
+            "kcal": 153,
+            "protein": 5.5,
+            "fat": 1.4,
+            "carbs": 29.0,
+        },
+        # Real leaf gelatine: one sheet, rounded to a tenth of a gram.
+        {
+            "name": "Gelatine leaf",
+            "grams": 1.6,
+            "kcal": 6,
+            "protein": 1.7,
+            "fat": 0,
+            "carbs": 0,
+        },
+    )
+
+    for item in fitting:
+        result = _append(tmp_path, item, "--json")
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)["data"]
+        assert payload["warnings"] == [], (item, payload["warnings"])
+
+
+def test_edit_keeps_human_stdout_to_the_path_and_warns_on_stderr(
+    tmp_path: Path,
+) -> None:
+    """Without `--json`, stdout stays the one path a shell can consume."""
+    result = _append(
+        tmp_path,
+        {
+            "name": "Buckwheat flour",
+            "grams": 42,
+            "kcal": 364,
+            "protein": 13.2,
+            "fat": 3.4,
+            "carbs": 69.0,
+        },
+    )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip().endswith(".yaml")
+    assert "42 g" in result.stderr, result.stderr
 
 
 def test_share_codec_round_trips_current_format() -> None:

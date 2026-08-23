@@ -17,5 +17,7 @@ remains zero. JSON food items are flat. Share links keep the
 compressed `#r=` format understood by Plate; the payload uses the same fields.
 Ingredient nutrients describe their `grams`, or 100 g when `grams` is absent;
 because nutrition sources publish per 100 g, scale their figures to the portion
-before appending one. Recipe output describes one recipe serving and can be
-piped directly to Nutrilog.
+before appending one, and set `grams` for a source that omits it. `edit
+--input` reports nutrients it can prove impossible under `warnings` without
+refusing them. Recipe output describes one recipe serving and can be piped
+directly to Nutrilog.
