@@ -56,10 +56,17 @@ def describe(recipe: Recipe) -> dict:
 
 
 def macro_summary(values: dict[str, float | None]) -> str:
-    """Print a question mark for unknown values and zero only for zero."""
+    """Print the nutrients this recipe states, and zero only for zero.
+
+    Unstated ones are left out rather than printed as a question mark: the
+    vocabulary is 41 names wide and a typical recipe states four of them, so
+    a fixed column list is a line of question marks. `--json` still answers
+    which names were stated, because it carries every key.
+    """
     return "  ".join(
-        f"{key} {values[key]:g}" if values[key] is not None else f"{key} ?"
+        f"{key} {values[key]:g}"
         for key in NUTRIENT_KEYS
+        if values.get(key) is not None
     )
 
 

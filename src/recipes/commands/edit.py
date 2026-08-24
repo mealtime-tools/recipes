@@ -12,7 +12,7 @@ from recipes import store
 from recipes.commands.shared import dir_option, refusing, resolve_dir
 from recipes.models import (
     MACRO_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
+    NUTRIENT_KEYS,
     PRODUCT_SOURCES,
     Ingredient,
     Macros,
@@ -65,10 +65,10 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
         raise UsageError(f"input nutrients missing {', '.join(missing)}")
 
     values: dict[str, float | None] = {}
-    for key in (*MACRO_KEYS, *OPTIONAL_NUTRIENT_KEYS):
+    for key in NUTRIENT_KEYS:
         value = item.get(key)
+        # Left out rather than stored as a null: `Macros` reads both the same.
         if value is None:
-            values[key] = None
             continue
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise UsageError(f"{key} must be a number or null")

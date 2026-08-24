@@ -10,6 +10,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
+
 # `overlay` is storage, never a source; see SPEC.
 PRODUCT_SOURCES = (
     "coles",
@@ -21,13 +23,24 @@ PRODUCT_SOURCES = (
 )
 
 # The four a snapshot must carry to be usable for arithmetic at all.
-MACRO_KEYS = ("kcal", "protein", "fat", "carbs")
+MACRO_KEYS = CORE_NUTRIENTS
 
-# Carried when the source record has them and absent when it does not, so a
-# record that never stated its fibre cannot be read as one stating zero.
-OPTIONAL_NUTRIENT_KEYS = ("fiber", "sodium", "sugar")
+# The three optional nutrients the wire format carried before it widened, in
+# the order it carried them. Restated rather than derived because this is
+# history, not vocabulary: the seven names below are the first seven keys of
+# every share link ever made, and the payload has no version field.
+_LEGACY_KEYS = ("fiber", "sodium", "sugar")
+
+# The rest of the shared vocabulary, appended alphabetically. Appended and not
+# merged so the legacy prefix keeps both its order and its positions; sorted
+# so that adding a name to the library cannot reshuffle the ones before it.
+OPTIONAL_NUTRIENT_KEYS = _LEGACY_KEYS + tuple(
+    sorted(set(NUTRIENTS) - set(MACRO_KEYS) - set(_LEGACY_KEYS))
+)
 
 # Every nutrient a snapshot may carry, in the order everything renders them.
+# Carried when the source record has them and absent when it does not, so a
+# record that never stated its fibre cannot be read as one stating zero.
 NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
 
 

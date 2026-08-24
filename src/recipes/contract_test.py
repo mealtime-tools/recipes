@@ -17,13 +17,17 @@ from recipes.codec import (
     recipe_from_payload,
     share_url,
 )
+from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
+
 from recipes.models import Ingredient, Macros, Product, Recipe
 from recipes.products import product_from_record
-from recipes.render import describe
+from recipes.render import describe, macro_summary
 from recipes.resolve import resolve_recipe
 from recipes.store import StoreError, dump_recipe, load_recipe, write
 
 # Spelled out, not imported: a test sharing the constant cannot catch a reorder.
+# The first seven are the order every share link made before the vocabulary
+# widened; the rest are alphabetical and were appended, never inserted.
 WIRE_NUTRIENT_KEYS = [
     "kcal",
     "protein",
@@ -32,6 +36,40 @@ WIRE_NUTRIENT_KEYS = [
     "fiber",
     "sodium",
     "sugar",
+    "biotin",
+    "caffeine",
+    "calcium",
+    "chloride",
+    "cholesterol",
+    "chromium",
+    "copper",
+    "folate",
+    "folic_acid",
+    "iodine",
+    "iron",
+    "magnesium",
+    "manganese",
+    "molybdenum",
+    "monounsaturated_fat",
+    "niacin",
+    "pantothenic_acid",
+    "phosphorus",
+    "polyunsaturated_fat",
+    "potassium",
+    "riboflavin",
+    "saturated_fat",
+    "selenium",
+    "thiamin",
+    "trans_fat",
+    "unsaturated_fat",
+    "vitamin_a",
+    "vitamin_b12",
+    "vitamin_b6",
+    "vitamin_c",
+    "vitamin_d",
+    "vitamin_e",
+    "vitamin_k",
+    "zinc",
 ]
 
 
@@ -104,6 +142,7 @@ def test_recipe_output_uses_null_for_unknown_and_zero_for_zero() -> None:
     description = describe(recipe)
     assert description["kcal"] == 0
     assert description["fiber"] is None
+    assert description["calcium"] is None
     assert description["grams"] == 100
     assert "nutrients" not in description
     assert "macros" not in description
@@ -365,6 +404,13 @@ def test_every_stored_weight_is_a_number_the_arithmetic_can_use(
     assert describe(recipe)["grams"] == 60
 
 
+def test_human_summary_prints_only_the_stated_nutrients() -> None:
+    """37 question marks is not a report; a stated figure is."""
+    summary = macro_summary(describe(_pinned_recipe()))
+
+    assert summary == "kcal 166  protein 4.6  fat 5.1  carbs 23.75"
+
+
 def test_share_codec_round_trips_current_format() -> None:
     recipe = Recipe(
         name="Toast",
@@ -387,6 +433,43 @@ def test_macros_as_dict_key_order_is_the_wire_format() -> None:
     macros = Macros(kcal=1, protein=2, fat=3, carbs=4)
 
     assert list(macros.as_dict()) == WIRE_NUTRIENT_KEYS
+
+
+def test_the_vocabulary_is_the_shared_one() -> None:
+    """Every name the tools exchange is carryable, and no name is invented."""
+    assert set(WIRE_NUTRIENT_KEYS) == set(NUTRIENTS)
+    assert WIRE_NUTRIENT_KEYS[: len(CORE_NUTRIENTS)] == list(CORE_NUTRIENTS)
+
+
+def test_a_widened_nutrient_round_trips_through_both_formats(
+    tmp_path: Path,
+) -> None:
+    """A name that only arrived with the wider vocabulary is carried too."""
+    recipe = Recipe(
+        name="Milk",
+        ingredients=[
+            Ingredient(
+                source="manual",
+                id="milk",
+                grams=100,
+                name="Milk",
+                macros=Macros(
+                    kcal=42, protein=3.4, fat=1, carbs=5, calcium=0.12
+                ),
+            )
+        ],
+    )
+    path = tmp_path / "milk.yaml"
+    write(path, recipe)
+
+    assert load_recipe(path) == recipe
+    stored = yaml.safe_load(path.read_text())["ingredients"][0]
+    assert stored["calcium"] == 0.12
+    assert "zinc" not in stored
+
+    row = payload_of(recipe)["ingredients"][0]
+    assert row["calcium"] == 0.12
+    assert "zinc" not in row
 
 
 def test_macros_requires_the_four_arithmetic_nutrients() -> None:
@@ -486,7 +569,7 @@ def test_product_scales_every_nutrient_it_states() -> None:
     }
 
     # Every nutrient scales, so a forgotten one shows up as a wrong number.
-    assert product_from_record(record).macros(125).as_dict() == {
+    assert product_from_record(record).macros(125).stated() == {
         "kcal": 250,
         "protein": 20,
         "fat": 10,
