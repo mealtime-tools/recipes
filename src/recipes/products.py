@@ -26,9 +26,6 @@ from recipes.models import (
     ProductLookup,
 )
 
-# kJ per kcal, for records that carry only the SI figure.
-KJ_PER_KCAL = 4.184
-
 
 class ProductError(Exception):
     """A record was found but cannot be used for arithmetic."""
@@ -42,25 +39,17 @@ def products_dir(env: dict[str, str] | None = None) -> Path:
     return root / "pantry"
 
 
-def _kcal(record: dict) -> float:
-    """Energy in kcal, converted from kJ only when kcal is absent.
-
-    A missing figure is refused rather than defaulted: an inferred zero
-    silently under-counts every recipe that uses the product.
-    """
-    if record.get("kcal") is not None:
-        return float(record["kcal"])
-
-    if record.get("kj") is not None:
-        return float(record["kj"]) / KJ_PER_KCAL
-
-    raise ProductError("record carries no energy value")
-
-
 def product_from_record(record: dict) -> Product:
-    """Read one Pantry record with whole-item nutrients and optional weight."""
-    values = {"kcal": _kcal(record)}
-    for field in MACRO_KEYS[1:]:
+    """Read one Pantry record with whole-item nutrients and optional weight.
+
+    Energy is read from `kcal` and nowhere else. A record stating only `kj` is
+    refused rather than converted: pantry converts at ingestion, `kj` is not a
+    name in the shared vocabulary, and a second conversion here is a second
+    place for the ratio to be wrong. A missing figure is refused rather than
+    defaulted: an inferred zero under-counts every recipe using the product.
+    """
+    values: dict[str, float] = {}
+    for field in MACRO_KEYS:
         if record.get(field) is None:
             raise ProductError(f"record carries no {field}")
         values[field] = float(record[field])

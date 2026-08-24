@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 from click.testing import CliRunner
+from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
 
 from recipes.cli import main
 from recipes.codec import (
@@ -17,10 +18,8 @@ from recipes.codec import (
     recipe_from_payload,
     share_url,
 )
-from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
-
 from recipes.models import Ingredient, Macros, Product, Recipe
-from recipes.products import product_from_record
+from recipes.products import ProductError, product_from_record
 from recipes.render import describe, macro_summary
 from recipes.resolve import resolve_recipe
 from recipes.store import StoreError, dump_recipe, load_recipe, write
@@ -596,6 +595,25 @@ def test_product_scaling_leaves_an_unstated_nutrient_unstated() -> None:
     assert scaled["fiber"] == 5
     assert scaled["sodium"] is None
     assert scaled["sugar"] is None
+
+
+def test_a_record_stating_only_kilojoules_is_refused() -> None:
+    """kcal is the wire vocabulary's only energy name; kJ is pantry's job."""
+    record = {
+        "name": "Oats",
+        "grams": 100,
+        "kj": 1500,
+        "protein": 8,
+        "fat": 4,
+        "carbs": 20,
+    }
+
+    with pytest.raises(ProductError):
+        product_from_record(record)
+
+    # A record carrying both is unaffected: the extra key is simply not read.
+    both = product_from_record({**record, "kcal": 359})
+    assert both.nutrients.as_dict()["kcal"] == 359
 
 
 def test_product_without_a_weight_scales_from_one_hundred_grams() -> None:
