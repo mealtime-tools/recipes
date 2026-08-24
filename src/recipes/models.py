@@ -68,6 +68,20 @@ class Macros:
         """Every standard nutrient. Unknown values are null, never zero."""
         return dict(self._values)
 
+    def stated(self) -> dict[str, float | None]:
+        """Only the nutrients this snapshot carries, in the same order.
+
+        What the durable formats write. An absent key and an explicit null
+        both read back as unstated, so the null is bytes in every stored
+        recipe and every share link that buy nothing. The four macros are
+        always written, so a reader still gets the shape it requires.
+        """
+        return {
+            key: value
+            for key, value in self._values.items()
+            if value is not None or key in MACRO_KEYS
+        }
+
     def scaled(self, factor: float) -> "Macros":
         """The same nutrients for `factor` times the weight.
 

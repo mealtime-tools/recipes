@@ -210,9 +210,10 @@ def _ingredient_mapping(item: Ingredient) -> dict[str, Any]:
         mapping["name"] = item.name
 
     # Omitted rather than zeroed when unresolved, so a reader can tell an
-    # unresolved ingredient from a genuinely calorie-free one.
+    # unresolved ingredient from a genuinely calorie-free one. Same for a
+    # single nutrient the snapshot never stated: see `Macros.stated`.
     if item.macros is not None:
-        mapping.update(item.macros.as_dict())
+        mapping.update(item.macros.stated())
 
     return mapping
 

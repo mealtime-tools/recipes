@@ -12,8 +12,8 @@ recipes share "Bean salad"
 ```
 
 Recipes live in `~/.config/recipes` by default. Pass `--dir` to any command to
-use another directory. Missing nutrient values are `null`; an explicit zero
-remains zero. JSON food items are flat. Share links keep the
+use another directory. Missing nutrient values are `null` in JSON output and
+omitted from a stored recipe and a share link; an explicit zero remains zero. JSON food items are flat. Share links keep the
 compressed `#r=` format understood by Plate; the payload uses the same fields.
 Ingredient nutrients describe their `grams`, which every item must state as a
 positive weight; recipe output describes one recipe serving and can be piped

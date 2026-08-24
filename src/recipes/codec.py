@@ -66,7 +66,7 @@ def _item_of(item: Ingredient) -> dict:
     return {
         "name": item.name or item.ref,
         "grams": compact_number(item.grams),
-        **macros.as_dict(),
+        **macros.stated(),
     }
 
 

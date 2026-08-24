@@ -109,7 +109,7 @@ def test_recipe_output_uses_null_for_unknown_and_zero_for_zero() -> None:
     assert "macros" not in description
 
 
-def test_recipe_yaml_round_trip_keeps_nulls(tmp_path: Path) -> None:
+def test_recipe_yaml_omits_an_unstated_nutrient(tmp_path: Path) -> None:
     path = tmp_path / "water.yaml"
     recipe = Recipe(
         name="Water",
@@ -126,8 +126,33 @@ def test_recipe_yaml_round_trip_keeps_nulls(tmp_path: Path) -> None:
     write(path, recipe)
     raw = yaml.safe_load(path.read_text())
 
-    assert raw["ingredients"][0]["fiber"] is None
+    assert "fiber" not in raw["ingredients"][0]
+    assert raw["ingredients"][0]["kcal"] == 0
     assert load_recipe(path) == recipe
+
+
+def test_recipe_yaml_still_reads_an_explicit_null(tmp_path: Path) -> None:
+    """Files written before nulls were omitted read the same as new ones."""
+    path = tmp_path / "old.yaml"
+    path.write_text(
+        "name: Water\n"
+        "servings: 1\n"
+        "ingredients:\n"
+        "- source: manual\n"
+        "  id: water\n"
+        "  grams: 100\n"
+        "  kcal: 0\n"
+        "  protein: 0\n"
+        "  fat: 0\n"
+        "  carbs: 0\n"
+        "  fiber: null\n"
+    )
+
+    macros = load_recipe(path).ingredients[0].macros
+
+    assert macros is not None
+    assert macros.as_dict()["fiber"] is None
+    assert macros.as_dict()["carbs"] == 0
 
 
 def test_edit_creates_a_recipe_file(tmp_path: Path) -> None:
@@ -392,9 +417,29 @@ def test_share_payload_json_is_byte_identical() -> None:
         '{"name":"Sourdough","grams":60,"kcal":258,"protein":9.1,"fat":2.1,'
         '"carbs":47.5,"fiber":2.4,"sodium":0.5,"sugar":1.2},'
         '{"name":"Butter","grams":10,"kcal":74,"protein":0.1,"fat":8.1,'
-        '"carbs":0,"fiber":null,"sodium":null,"sugar":null}]}'
+        '"carbs":0}]}'
     )
     assert decode_payload(encode_payload(payload)) == payload
+
+
+def test_share_payload_still_reads_an_explicit_null() -> None:
+    """Links made before nulls were omitted read the same as new ones."""
+    row = {
+        "name": "Butter",
+        "grams": 10,
+        "kcal": 74,
+        "protein": 0.1,
+        "fat": 8.1,
+        "carbs": 0,
+        "fiber": None,
+    }
+
+    recipe = recipe_from_payload({"name": "X", "ingredients": [row]})
+    macros = recipe.ingredients[0].macros
+
+    assert macros is not None
+    assert macros.as_dict()["fiber"] is None
+    assert macros.as_dict()["carbs"] == 0
 
 
 def test_recipe_yaml_is_byte_identical() -> None:
@@ -424,9 +469,6 @@ def test_recipe_yaml_is_byte_identical() -> None:
         "  protein: 0.1\n"
         "  fat: 8.1\n"
         "  carbs: 0\n"
-        "  fiber: null\n"
-        "  sodium: null\n"
-        "  sugar: null\n"
     )
 
 
