@@ -18,8 +18,7 @@ DEFAULT_VIEWER_URL = "https://mealtime-tools.github.io/plate/"
 
 def viewer_url(env: Mapping[str, str] | None = None) -> str:
     """The configured viewer base URL, or the deployed Plate page."""
-    # `.env` fills gaps in the environment rather than overriding it, matching
-    # how pantry resolves its USDA key.
+    # `.env` fills gaps in the environment rather than overriding it.
     if env is None:
         load_dotenv()
         env = os.environ

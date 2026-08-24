@@ -15,18 +15,11 @@ from math import isfinite
 from pathlib import Path
 
 import click
+from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
 from pantry import data as pantry_data
 from pantry.store import Store
 
-from recipes.models import (
-    MACRO_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
-    Product,
-    ProductLookup,
-)
-
-# kJ per kcal, for records that carry only the SI figure.
-KJ_PER_KCAL = 4.184
+from recipes.models import Macros, Product, ProductLookup
 
 
 class ProductError(Exception):
@@ -41,39 +34,27 @@ def products_dir(env: dict[str, str] | None = None) -> Path:
     return root / "pantry"
 
 
-def _kcal(record: dict) -> float:
-    """Energy in kcal, converted from kJ only when kcal is absent.
-
-    A missing figure is refused rather than defaulted: an inferred zero
-    silently under-counts every recipe that uses the product.
-    """
-    if record.get("kcal") is not None:
-        return float(record["kcal"])
-
-    if record.get("kj") is not None:
-        return float(record["kj"]) / KJ_PER_KCAL
-
-    raise ProductError("record carries no energy value")
-
-
 def product_from_record(record: dict) -> Product:
-    """Read one Pantry record with whole-item nutrients and optional weight."""
-    values = {"kcal": _kcal(record)}
-    for field in MACRO_KEYS[1:]:
+    """Read one Pantry record with whole-item nutrients and optional weight.
+
+    Energy is read from `kcal` and nowhere else. A record stating only `kj` is
+    refused rather than converted: pantry converts at ingestion, `kj` is not a
+    name in the shared vocabulary, and a second conversion here is a second
+    place for the ratio to be wrong. A missing figure is refused rather than
+    defaulted: an inferred zero under-counts every recipe using the product.
+    """
+    values: dict[str, float] = {}
+    for field in CORE_NUTRIENTS:
         if record.get(field) is None:
             raise ProductError(f"record carries no {field}")
         values[field] = float(record[field])
 
-    # Carried through when the record states them, and left unset otherwise:
-    # pantry never infers a zero here, so neither does the snapshot.
-    for field in OPTIONAL_NUTRIENT_KEYS:
+    # Left unset when the record does not state it: pantry infers no zero.
+    for field in OPTIONAL_NUTRIENTS:
         if record.get(field) is not None:
             values[field] = float(record[field])
 
-    # `NaN` and `Infinity` are readable JSON, and every total goes through
-    # `round_js`, which raises `ValueError` on the first and `OverflowError` on
-    # the second. Unguarded, one field of one record is an unhandled traceback
-    # from `resolve`; refused here, it is a refusal that names the field.
+    # `NaN` and `Infinity` are readable JSON and crash `round_js` later.
     for field, value in values.items():
         if not isfinite(value):
             raise ProductError(f"record has an unusable {field}: {value}")
@@ -86,7 +67,7 @@ def product_from_record(record: dict) -> Product:
         grams=(
             float(record["grams"]) if record.get("grams") is not None else None
         ),
-        **values,
+        nutrients=Macros(**values),
     )
 
 
@@ -157,8 +138,7 @@ def resolve_lookup(
     if directory is not None:
         return JsonlProducts(sorted(directory.glob("*.jsonl")))
 
-    # Pantry's store is a directory of per-source shards, the same layout its
-    # frozen data ships in.
+    # Pantry's store is a directory of per-source shards.
     store = Store(
         lambda: pantry_data.read_shards(pantry_data.data_dir()),
         products_dir(),

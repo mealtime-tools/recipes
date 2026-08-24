@@ -36,8 +36,7 @@ def refuse_with(
     costs no second stream and no second parse.
     """
     if json_output:
-        # agentcli's failure envelope, plus the detail under `data`, so a
-        # consumer still branches on `ok` alone and never parses a message.
+        # agentcli's envelope, so a consumer branches on `ok` alone.
         click.echo(
             dumps({"ok": False, "error": {"message": message}, "data": detail})
         )

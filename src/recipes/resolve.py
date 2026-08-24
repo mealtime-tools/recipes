@@ -9,8 +9,10 @@ promise carrying no macros.
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from mealtime_nutrients import NUTRIENTS
+
 from recipes import store
-from recipes.models import NUTRIENT_KEYS, Ingredient, ProductLookup, Recipe
+from recipes.models import Ingredient, ProductLookup, Recipe
 
 
 @dataclass(frozen=True)
@@ -37,7 +39,6 @@ def _resolve_one(
 ) -> tuple[Ingredient | None, str | None]:
     """Resolve one reference, reporting a miss instead of hiding it."""
     ref = f"{source}:{id}"
-    # The lookup is injected code reading records this package does not own.
     # One unreadable record must name itself, not abort the whole command.
     try:
         product = lookup.lookup(source, id)
@@ -66,12 +67,14 @@ def _changed_fields(before: Ingredient, after: Ingredient) -> dict[str, dict]:
     be totalled for that nutrient at all, so it is reported with `None` on
     whichever side of the change lacked it.
     """
+    assert before.macros is not None and after.macros is not None
     fields: dict[str, dict] = {}
     if before.name != after.name:
         fields["name"] = {"before": before.name, "after": after.name}
 
-    for key in NUTRIENT_KEYS:
-        old, new = getattr(before.macros, key), getattr(after.macros, key)
+    old_values, new_values = before.macros.as_dict(), after.macros.as_dict()
+    for key in NUTRIENTS:
+        old, new = old_values[key], new_values[key]
         if old != new:
             fields[key] = {"before": old, "after": new}
 
@@ -104,10 +107,7 @@ def resolve_recipe(
         )
         if after is None:
             ingredients.append(before)
-            # A miss with a good snapshot behind it is stale, not wrong:
-            # losing it to a briefly unavailable source would turn a complete
-            # recipe into one that refuses to total. A miss with nothing
-            # behind it is rule 12 and refuses the recipe.
+            # A miss over a good snapshot is stale; over nothing, rule 12.
             message = error or f"{before.ref}: unresolved"
             if before.macros is None:
                 errors.append(message)

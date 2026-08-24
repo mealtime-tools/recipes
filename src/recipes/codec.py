@@ -13,6 +13,8 @@ import base64
 import json
 import zlib
 
+from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
+
 from recipes.macros import (
     IncompleteRecipe,
     compact_number,
@@ -23,8 +25,7 @@ from recipes.models import Ingredient, Macros, Recipe
 
 FRAGMENT_KEY = "r"
 
-# Raw deflate: no zlib header, no checksum. Two bytes of header and four of
-# Adler-32 are eight base64 characters that a QR code has to carry.
+# Raw deflate: zlib's header and checksum cost eight base64 characters.
 _WINDOW_BITS = -15
 
 
@@ -60,7 +61,7 @@ def _item_of(item: Ingredient) -> dict:
     return {
         "name": item.name or item.ref,
         "grams": compact_number(item.grams),
-        **macros.as_dict(),
+        **macros.stated(),
     }
 
 
@@ -129,13 +130,11 @@ def _ingredient_from_item(row: object) -> Ingredient:
     try:
         name = str(row.get("name") or "Ingredient")
         grams = float(row["grams"])
-        values = {
-            key: float(row[key]) for key in ("kcal", "protein", "fat", "carbs")
-        }
+        values = {key: float(row[key]) for key in CORE_NUTRIENTS}
         values.update(
             {
                 key: float(row[key])
-                for key in ("fiber", "sodium", "sugar")
+                for key in OPTIONAL_NUTRIENTS
                 if row.get(key) is not None
             }
         )

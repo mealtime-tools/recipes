@@ -13,8 +13,7 @@ EPILOG = """\b
 Exit codes: 0 success, 1 invalid or incomplete recipe."""
 
 
-# JsonAwareGroup keeps the `--json` promise for failures click raises before
-# a subcommand has parsed anything, such as a mistyped flag.
+# JsonAwareGroup keeps the `--json` promise for errors click raises early.
 @click.group(
     cls=JsonAwareGroup,
     context_settings={"help_option_names": ["-h", "--help"]},

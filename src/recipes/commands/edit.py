@@ -7,17 +7,11 @@ from typing import Any, TextIO
 
 import click
 from agentcli import UsageError, emit, json_option
+from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
 
 from recipes import store
 from recipes.commands.shared import dir_option, refusing, resolve_dir
-from recipes.models import (
-    MACRO_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
-    PRODUCT_SOURCES,
-    Ingredient,
-    Macros,
-    Recipe,
-)
+from recipes.models import PRODUCT_SOURCES, Ingredient, Macros, Recipe
 from recipes.render import describe
 
 
@@ -60,15 +54,15 @@ def _grams(item: dict[str, Any]) -> float:
 
 
 def _ingredient(item: dict[str, Any]) -> Ingredient:
-    missing = [key for key in MACRO_KEYS if item.get(key) is None]
+    missing = [key for key in CORE_NUTRIENTS if item.get(key) is None]
     if missing:
         raise UsageError(f"input nutrients missing {', '.join(missing)}")
 
     values: dict[str, float | None] = {}
-    for key in (*MACRO_KEYS, *OPTIONAL_NUTRIENT_KEYS):
+    for key in NUTRIENTS:
         value = item.get(key)
+        # Left out rather than stored as a null: `Macros` reads both the same.
         if value is None:
-            values[key] = None
             continue
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise UsageError(f"{key} must be a number or null")
