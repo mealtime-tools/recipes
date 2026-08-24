@@ -39,7 +39,6 @@ def _resolve_one(
 ) -> tuple[Ingredient | None, str | None]:
     """Resolve one reference, reporting a miss instead of hiding it."""
     ref = f"{source}:{id}"
-    # The lookup is injected code reading records this package does not own.
     # One unreadable record must name itself, not abort the whole command.
     try:
         product = lookup.lookup(source, id)
@@ -108,10 +107,7 @@ def resolve_recipe(
         )
         if after is None:
             ingredients.append(before)
-            # A miss with a good snapshot behind it is stale, not wrong:
-            # losing it to a briefly unavailable source would turn a complete
-            # recipe into one that refuses to total. A miss with nothing
-            # behind it is rule 12 and refuses the recipe.
+            # A miss over a good snapshot is stale; over nothing, rule 12.
             message = error or f"{before.ref}: unresolved"
             if before.macros is None:
                 errors.append(message)

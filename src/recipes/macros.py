@@ -115,10 +115,7 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
 
     servings = parse_servings(recipe.servings)
 
-    # All or nothing per nutrient: one ingredient that never stated its fibre
-    # makes a fibre total an under-report, which is worse than no total.
-    # Scaled once, then both decided and summed from the same dicts, so what
-    # counts as stated and what gets added up cannot come apart.
+    # All or nothing per nutrient: one unstated reading voids that total.
     scaled = [
         (item.ref, ingredient_macros(item)) for item in recipe.ingredients
     ]

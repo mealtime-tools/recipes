@@ -25,8 +25,6 @@ from recipes.resolve import resolve_recipe
 from recipes.store import StoreError, dump_recipe, load_recipe, write
 
 # Spelled out, not imported: a test sharing the constant cannot catch a reorder.
-# The first seven are the order every share link made before the vocabulary
-# widened; the rest are alphabetical and were appended, never inserted.
 WIRE_NUTRIENT_KEYS = [
     "kcal",
     "protein",

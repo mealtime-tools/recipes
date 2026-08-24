@@ -25,8 +25,7 @@ from recipes.models import Ingredient, Macros, Recipe
 
 FRAGMENT_KEY = "r"
 
-# Raw deflate: no zlib header, no checksum. Two bytes of header and four of
-# Adler-32 are eight base64 characters that a QR code has to carry.
+# Raw deflate: zlib's header and checksum cost eight base64 characters.
 _WINDOW_BITS = -15
 
 

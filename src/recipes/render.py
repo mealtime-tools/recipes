@@ -83,8 +83,7 @@ def recipe_lines(item: dict) -> Iterable[str]:
     if item["complete"]:
         yield f"  per serving  {macro_summary(item)}"
 
-    # Named, so the next command can be about the missing ingredient rather
-    # than about the recipe being mysteriously unusable.
+    # Named, so the next command can be about the missing ingredient.
     for error in item["unresolved"]:
         yield f"  unresolved: {error}"
 

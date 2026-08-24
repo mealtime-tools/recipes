@@ -1,19 +1,12 @@
 """One recipe, one YAML file, in a directory the user chooses.
 
-Recipes are private user data, so they live under XDG config (or a
-`--dir` the user points at a private git repo) and never inside a checkout.
+Recipes are private user data, so they live under XDG config (or a `--dir`
+pointing at a private git repo) and never inside a checkout.
 
-The `name:` field inside a file is the recipe's identity, so lookups scan the
-directory and match on it. Deriving the filename from the name and stat-ing
-it was one stat instead of a scan, but it also meant that editing `name:` by
-hand made the recipe unfindable — and hand-editing is how recipes are
-written. Tens of small files make the scan free.
-
-There is deliberately no revision log here. The TypeScript version appended
-every save to one JSONL file and resolved "current" by the newest `added_at`
-for a case-insensitive name, which is a version-control system with one
-feature and no history commands. Git already does that job: two revisions of
-a recipe are two commits to one file.
+Identity is the `name:` field, not the filename, so lookups scan the directory
+and match on it: hand-editing `name:` is how a recipe is renamed, and tens of
+small files make the scan free. There is deliberately no revision log, because
+git already does that job: two revisions of a recipe are two commits.
 """
 
 import hashlib
@@ -32,8 +25,7 @@ from recipes.models import PRODUCT_SOURCES, Ingredient, Macros, Recipe
 
 SUFFIX = ".yaml"
 
-# Long enough to stay readable in `ls`, short enough to leave room for the
-# digest inside every filesystem's name limit.
+# Readable in `ls`, with room left for the digest inside the name limit.
 _SLUG_LIMIT = 48
 
 
@@ -105,17 +97,12 @@ def _nutrients_from(raw: dict[str, Any], ref: str) -> Macros | None:
 
     values = {key: float(raw[key]) for key in CORE_NUTRIENTS}
 
-    # An optional nutrient the file does not state stays unstated, rather
-    # than becoming a zero the next total would report as sourced.
+    # An optional nutrient the file omits stays unstated, never a zero.
     for key in OPTIONAL_NUTRIENTS:
         if raw.get(key) is not None:
             values[key] = float(raw[key])
 
-    # `.nan` and `.inf` are readable YAML floats, and every total goes through
-    # `round_js`, which raises `ValueError` on the first and `OverflowError` on
-    # the second. Unguarded, one field of one ingredient is an unhandled
-    # traceback from `show`; refused here, it is a refusal that names the
-    # ingredient and the key.
+    # `.nan` and `.inf` are readable YAML floats and crash `round_js` later.
     unusable = [key for key, value in values.items() if not isfinite(value)]
     if unusable:
         raise StoreError(f"{ref}: nutrients not finite: {', '.join(unusable)}")
@@ -138,8 +125,7 @@ def _ingredient_from(raw: Any) -> Ingredient:
     except (KeyError, TypeError, ValueError) as exc:
         raise StoreError(f"{ref}: unreadable grams") from exc
 
-    # Refused at ingress rather than stored as a reference nothing can ever
-    # resolve, which would look like a product database outage forever.
+    # Refused at ingress rather than stored as a reference nothing resolves.
     source = str(raw.get("source") or "manual")
     if source not in PRODUCT_SOURCES:
         allowed = ", ".join(PRODUCT_SOURCES)
@@ -203,9 +189,7 @@ def _ingredient_mapping(item: Ingredient) -> dict[str, Any]:
     if item.name:
         mapping["name"] = item.name
 
-    # Omitted rather than zeroed when unresolved, so a reader can tell an
-    # unresolved ingredient from a genuinely calorie-free one. Same for a
-    # single nutrient the snapshot never stated: see `Macros.stated`.
+    # Omitted rather than zeroed, so unresolved reads apart from calorie-free.
     if item.macros is not None:
         mapping.update(item.macros.stated())
 

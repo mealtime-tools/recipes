@@ -49,16 +49,12 @@ def product_from_record(record: dict) -> Product:
             raise ProductError(f"record carries no {field}")
         values[field] = float(record[field])
 
-    # Carried through when the record states them, and left unset otherwise:
-    # pantry never infers a zero here, so neither does the snapshot.
+    # Left unset when the record does not state it: pantry infers no zero.
     for field in OPTIONAL_NUTRIENTS:
         if record.get(field) is not None:
             values[field] = float(record[field])
 
-    # `NaN` and `Infinity` are readable JSON, and every total goes through
-    # `round_js`, which raises `ValueError` on the first and `OverflowError` on
-    # the second. Unguarded, one field of one record is an unhandled traceback
-    # from `resolve`; refused here, it is a refusal that names the field.
+    # `NaN` and `Infinity` are readable JSON and crash `round_js` later.
     for field, value in values.items():
         if not isfinite(value):
             raise ProductError(f"record has an unusable {field}: {value}")
@@ -142,8 +138,7 @@ def resolve_lookup(
     if directory is not None:
         return JsonlProducts(sorted(directory.glob("*.jsonl")))
 
-    # Pantry's store is a directory of per-source shards, the same layout its
-    # frozen data ships in.
+    # Pantry's store is a directory of per-source shards.
     store = Store(
         lambda: pantry_data.read_shards(pantry_data.data_dir()),
         products_dir(),

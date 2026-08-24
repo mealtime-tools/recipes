@@ -61,8 +61,7 @@ def resolve(
     if not outcome.recipe.ingredients:
         refuse(f"{name}: has no ingredients", json_output=json_output)
 
-    # Rule 12: nothing is written for a recipe that still cannot be totalled,
-    # so a file never ends up looking more resolved than it is.
+    # Rule 12: nothing is written for a recipe that still cannot be totalled.
     if outcome.errors:
         refuse_with(
             f"{stored.recipe.name}: "
@@ -96,8 +95,7 @@ def _human(payload: dict) -> Iterable[str]:
             before, after = values["before"], values["after"]
             yield f"  changed: {change['name']} {field} {before} -> {after}"
 
-    # Said out loud: the file keeps data the database could not confirm, which
-    # is the difference between stale and wrong.
+    # Said out loud: data the database could not confirm is stale, not wrong.
     for warning in payload["warnings"]:
         yield f"  kept last good snapshot: {warning}"
 
