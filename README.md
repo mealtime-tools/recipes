@@ -13,10 +13,11 @@ recipes share "Bean salad"
 
 Recipes live in `~/.config/recipes` by default. Pass `--dir` to any command to
 use another directory. The nutrient names are `mealtime-nutrients`: 41 of them,
-grams throughout, and energy in kcal. Missing nutrient values are `null` in
-JSON output and omitted from a stored recipe and a share link; an explicit zero
-remains zero. JSON food items are flat. Share links keep the
-compressed `#r=` format understood by Plate; the payload uses the same fields.
+grams throughout, and energy in kcal. Every output carries the four core
+nutrients and only the others it has a figure for; an absent key means the same
+as a `null`, and an explicit zero remains zero. JSON food items are flat. Share
+links keep the compressed `#r=` format understood by Plate; the payload uses the
+same fields.
 Ingredient nutrients describe their `grams`, which every item must state as a
 positive weight; recipe output describes one recipe serving and can be piped
 directly to Nutrilog.

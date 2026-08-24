@@ -19,4 +19,4 @@ Use `--dir PATH` only when the user supplied a different recipe directory.
 Plate URL. `edit --input` appends one flat Pantry, Eatout, Recipes, or Nutrilog
 item with all four core nutrients and a positive `grams` naming the weight
 they describe, which for per-100 g figures is `100`. An item stating no
-`grams` is refused. Missing nutrients remain `null`.
+`grams` is refused. An unstated nutrient is omitted, never zeroed.

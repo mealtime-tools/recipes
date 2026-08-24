@@ -11,18 +11,15 @@ from recipes.models import NUTRIENT_KEYS, Recipe
 
 
 def ingredient_rows(recipe: Recipe) -> list[dict]:
-    """Every ingredient as flat JSON."""
+    """Every ingredient as flat JSON, carrying the nutrients it states."""
     return [
         {
             "source": item.source,
             "id": item.id,
             "grams": item.grams,
             "name": item.name,
-            **(
-                item.macros.as_dict()
-                if item.macros
-                else {key: None for key in NUTRIENT_KEYS}
-            ),
+            # No snapshot, no figures: the same choice `store` makes.
+            **(item.macros.stated() if item.macros else {}),
         }
         for item in recipe.ingredients
     ]
@@ -31,9 +28,11 @@ def ingredient_rows(recipe: Recipe) -> list[dict]:
 def describe(recipe: Recipe) -> dict:
     """A recipe as JSON: its fields, its state, and totals only if entitled.
 
-    `nutrients` is null exactly when `complete` is false. An agent cannot
-    mistake a partial sum for a total. No share
-    URL: building one needs a configured viewer, which only `share` has.
+    Carries per-serving figures for the nutrients every ingredient states, and
+    no key at all for the rest: an absent key and a null say the same thing, so
+    the four macros are here exactly when `complete` is true. An agent cannot
+    mistake a partial sum for a total. No share URL: building one needs a
+    configured viewer, which only `share` has.
     """
     complete = is_complete(recipe)
     macros = recipe_macros(recipe) if complete else None
@@ -48,10 +47,8 @@ def describe(recipe: Recipe) -> dict:
         "ingredients": ingredient_rows(recipe),
         "complete": complete,
         "unresolved": unresolved(recipe),
-        **{
-            key: macros.per_serving.get(key) if macros else None
-            for key in NUTRIENT_KEYS
-        },
+        # Already only the totals `recipe_macros` was entitled to compute.
+        **(macros.per_serving if macros else {}),
     }
 
 
@@ -60,8 +57,8 @@ def macro_summary(values: dict[str, float | None]) -> str:
 
     Unstated ones are left out rather than printed as a question mark: the
     vocabulary is 41 names wide and a typical recipe states four of them, so
-    a fixed column list is a line of question marks. `--json` still answers
-    which names were stated, because it carries every key.
+    a fixed column list is a line of question marks. Reads the key rather than
+    assuming it, because `describe` omits an unstated nutrient outright.
     """
     return "  ".join(
         f"{key} {values[key]:g}"

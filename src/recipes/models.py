@@ -78,16 +78,23 @@ class Macros:
         object.__setattr__(self, "_values", _nutrients(values))
 
     def as_dict(self) -> dict[str, float | None]:
-        """Every standard nutrient. Unknown values are null, never zero."""
+        """Every standard nutrient. Unknown values are null, never zero.
+
+        Not a wire format: nothing emits this. It is for the two readers that
+        compare or total across the whole vocabulary, `resolve._changed_fields`
+        and `macros.recipe_macros`, where a null column is the answer rather
+        than noise -- a nutrient appearing or vanishing on a refresh is news,
+        and one ingredient's absent fibre voids the recipe's fibre total.
+        """
         return dict(self._values)
 
     def stated(self) -> dict[str, float | None]:
         """Only the nutrients this snapshot carries, in the same order.
 
-        What the durable formats write. An absent key and an explicit null
-        both read back as unstated, so the null is bytes in every stored
-        recipe and every share link that buy nothing. The four macros are
-        always written, so a reader still gets the shape it requires.
+        What everything emits. An absent key and an explicit null both read
+        back as unstated, so the null is bytes in every stored recipe, share
+        link and JSON row that buy nothing. The four macros are always
+        written, so a reader still gets the shape it requires.
         """
         return {
             key: value

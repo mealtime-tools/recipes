@@ -125,7 +125,7 @@ def test_product_records_accept_canonical_names_and_preserve_zero() -> None:
     assert product.macros(45).as_dict()["protein"] == 0
 
 
-def test_recipe_output_uses_null_for_unknown_and_zero_for_zero() -> None:
+def test_recipe_output_omits_an_unstated_nutrient_and_keeps_a_zero() -> None:
     recipe = Recipe(
         name="Water",
         ingredients=[
@@ -140,11 +140,49 @@ def test_recipe_output_uses_null_for_unknown_and_zero_for_zero() -> None:
 
     description = describe(recipe)
     assert description["kcal"] == 0
-    assert description["fiber"] is None
-    assert description["calcium"] is None
+    assert "fiber" not in description
+    assert "calcium" not in description
+    assert description["ingredients"][0]["carbs"] == 0
+    assert "fiber" not in description["ingredients"][0]
     assert description["grams"] == 100
     assert "nutrients" not in description
     assert "macros" not in description
+
+
+def test_recipe_output_carries_a_stated_optional_nutrient() -> None:
+    """Omission has to mean unstated, so a stated figure must survive it."""
+    recipe = Recipe(
+        name="Bread",
+        ingredients=[
+            Ingredient(
+                source="manual",
+                id="bread",
+                grams=100,
+                macros=Macros(kcal=250, protein=9, fat=2, carbs=48, fiber=3),
+            )
+        ],
+    )
+
+    description = describe(recipe)
+    assert description["fiber"] == 3
+    assert description["ingredients"][0]["fiber"] == 3
+
+
+def test_an_unresolved_ingredient_row_carries_no_nutrients() -> None:
+    """The same choice `store` makes: no snapshot, no figures, not zeroes."""
+    recipe = Recipe(
+        name="Mystery",
+        ingredients=[Ingredient(source="coles", id="1", grams=100)],
+    )
+
+    description = describe(recipe)
+    row = description["ingredients"][0]
+
+    assert description["complete"] is False
+    assert not set(row) & set(WIRE_NUTRIENT_KEYS)
+    assert row["grams"] == 100
+    assert description["unresolved"] == ["coles:1: no macro snapshot"]
+    assert not set(description) & set(WIRE_NUTRIENT_KEYS)
 
 
 def test_recipe_yaml_omits_an_unstated_nutrient(tmp_path: Path) -> None:
@@ -669,5 +707,43 @@ def test_resolve_reports_a_changed_optional_nutrient_per_key() -> None:
             "ref": "manual:oats",
             "name": "Oats",
             "fields": {"fiber": {"before": None, "after": 9.0}},
+        }
+    ]
+
+
+def test_resolve_reports_a_vanished_optional_nutrient() -> None:
+    """Why `_changed_fields` reads the exhaustive mapping, not the stated one."""
+    recipe = Recipe(
+        name="Oats",
+        ingredients=[
+            Ingredient(
+                source="manual",
+                id="oats",
+                grams=100,
+                name="Oats",
+                macros=Macros(kcal=100, protein=8, fat=4, carbs=20, fiber=9),
+            )
+        ],
+    )
+    lookup = _FakeLookup(
+        product_from_record(
+            {
+                "name": "Oats",
+                "grams": 100,
+                "kcal": 100,
+                "protein": 8,
+                "fat": 4,
+                "carbs": 20,
+            }
+        )
+    )
+
+    outcome = resolve_recipe(recipe, lookup, force=True)
+
+    assert outcome.changes == [
+        {
+            "ref": "manual:oats",
+            "name": "Oats",
+            "fields": {"fiber": {"before": 9.0, "after": None}},
         }
     ]
