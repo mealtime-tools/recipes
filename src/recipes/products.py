@@ -15,16 +15,11 @@ from math import isfinite
 from pathlib import Path
 
 import click
+from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
 from pantry import data as pantry_data
 from pantry.store import Store
 
-from recipes.models import (
-    MACRO_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
-    Macros,
-    Product,
-    ProductLookup,
-)
+from recipes.models import Macros, Product, ProductLookup
 
 
 class ProductError(Exception):
@@ -49,14 +44,14 @@ def product_from_record(record: dict) -> Product:
     defaulted: an inferred zero under-counts every recipe using the product.
     """
     values: dict[str, float] = {}
-    for field in MACRO_KEYS:
+    for field in CORE_NUTRIENTS:
         if record.get(field) is None:
             raise ProductError(f"record carries no {field}")
         values[field] = float(record[field])
 
     # Carried through when the record states them, and left unset otherwise:
     # pantry never infers a zero here, so neither does the snapshot.
-    for field in OPTIONAL_NUTRIENT_KEYS:
+    for field in OPTIONAL_NUTRIENTS:
         if record.get(field) is not None:
             values[field] = float(record[field])
 

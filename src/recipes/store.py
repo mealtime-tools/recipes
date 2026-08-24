@@ -25,16 +25,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
 
 from recipes.macros import compact_number, parse_servings
-from recipes.models import (
-    MACRO_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
-    PRODUCT_SOURCES,
-    Ingredient,
-    Macros,
-    Recipe,
-)
+from recipes.models import PRODUCT_SOURCES, Ingredient, Macros, Recipe
 
 SUFFIX = ".yaml"
 
@@ -102,18 +96,18 @@ def path_for(directory: Path, name: str) -> Path:
 
 def _nutrients_from(raw: dict[str, Any], ref: str) -> Macros | None:
     """Read a snapshot, or report its absence. Never infer a zero."""
-    if not any(raw.get(key) is not None for key in MACRO_KEYS):
+    if not any(raw.get(key) is not None for key in CORE_NUTRIENTS):
         return None
 
-    missing = [key for key in MACRO_KEYS if raw.get(key) is None]
+    missing = [key for key in CORE_NUTRIENTS if raw.get(key) is None]
     if missing:
         raise StoreError(f"{ref}: nutrients missing {', '.join(missing)}")
 
-    values = {key: float(raw[key]) for key in MACRO_KEYS}
+    values = {key: float(raw[key]) for key in CORE_NUTRIENTS}
 
     # An optional nutrient the file does not state stays unstated, rather
     # than becoming a zero the next total would report as sourced.
-    for key in OPTIONAL_NUTRIENT_KEYS:
+    for key in OPTIONAL_NUTRIENTS:
         if raw.get(key) is not None:
             values[key] = float(raw[key])
 

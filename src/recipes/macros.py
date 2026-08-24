@@ -8,12 +8,9 @@ second implementation that treated a missing snapshot as zero.
 import math
 from dataclasses import dataclass
 
-from recipes.models import (
-    NUTRIENT_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
-    Ingredient,
-    Recipe,
-)
+from mealtime_nutrients import NUTRIENTS, OPTIONAL_NUTRIENTS
+
+from recipes.models import Ingredient, Recipe
 
 # A recipe is always at least one serving, so a label never divides by zero.
 MIN_SERVINGS = 1
@@ -90,7 +87,7 @@ def _absent_from(
     """
     return {
         key
-        for key in OPTIONAL_NUTRIENT_KEYS
+        for key in OPTIONAL_NUTRIENTS
         for _, values in stated
         if values.get(key) is None
     }
@@ -126,7 +123,7 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
         (item.ref, ingredient_macros(item)) for item in recipe.ingredients
     ]
     absent = _absent_from(scaled)
-    totals = {key: 0.0 for key in NUTRIENT_KEYS if key not in absent}
+    totals = {key: 0.0 for key in NUTRIENTS if key not in absent}
     for _, values in scaled:
         for key in totals:
             value = values[key]

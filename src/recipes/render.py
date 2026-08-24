@@ -6,8 +6,10 @@ cannot drift between `show`, `resolve`, `fit` and `search`.
 
 from collections.abc import Iterable
 
+from mealtime_nutrients import NUTRIENTS
+
 from recipes.macros import is_complete, recipe_macros, round_js, unresolved
-from recipes.models import NUTRIENT_KEYS, Recipe
+from recipes.models import Recipe
 
 
 def ingredient_rows(recipe: Recipe) -> list[dict]:
@@ -62,7 +64,7 @@ def macro_summary(values: dict[str, float | None]) -> str:
     """
     return "  ".join(
         f"{key} {values[key]:g}"
-        for key in NUTRIENT_KEYS
+        for key in NUTRIENTS
         if values.get(key) is not None
     )
 

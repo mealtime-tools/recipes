@@ -9,8 +9,10 @@ promise carrying no macros.
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from mealtime_nutrients import NUTRIENTS
+
 from recipes import store
-from recipes.models import NUTRIENT_KEYS, Ingredient, ProductLookup, Recipe
+from recipes.models import Ingredient, ProductLookup, Recipe
 
 
 @dataclass(frozen=True)
@@ -72,7 +74,7 @@ def _changed_fields(before: Ingredient, after: Ingredient) -> dict[str, dict]:
         fields["name"] = {"before": before.name, "after": after.name}
 
     old_values, new_values = before.macros.as_dict(), after.macros.as_dict()
-    for key in NUTRIENT_KEYS:
+    for key in NUTRIENTS:
         old, new = old_values[key], new_values[key]
         if old != new:
             fields[key] = {"before": old, "after": new}

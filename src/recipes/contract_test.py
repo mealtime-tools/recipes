@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 from click.testing import CliRunner
-from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
+from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS, OPTIONAL_NUTRIENTS
 
 from recipes.cli import main
 from recipes.codec import (
@@ -473,9 +473,12 @@ def test_macros_as_dict_key_order_is_the_wire_format() -> None:
 
 
 def test_the_vocabulary_is_the_shared_one() -> None:
-    """Every name the tools exchange is carryable, and no name is invented."""
-    assert set(WIRE_NUTRIENT_KEYS) == set(NUTRIENTS)
+    """The library's order is the wire order, name for name and position."""
+    assert WIRE_NUTRIENT_KEYS == list(NUTRIENTS)
     assert WIRE_NUTRIENT_KEYS[: len(CORE_NUTRIENTS)] == list(CORE_NUTRIENTS)
+    assert WIRE_NUTRIENT_KEYS[len(CORE_NUTRIENTS) :] == list(
+        OPTIONAL_NUTRIENTS
+    )
 
 
 def test_a_widened_nutrient_round_trips_through_both_formats(

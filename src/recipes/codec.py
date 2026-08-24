@@ -13,19 +13,15 @@ import base64
 import json
 import zlib
 
+from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
+
 from recipes.macros import (
     IncompleteRecipe,
     compact_number,
     parse_servings,
     unresolved,
 )
-from recipes.models import (
-    MACRO_KEYS,
-    OPTIONAL_NUTRIENT_KEYS,
-    Ingredient,
-    Macros,
-    Recipe,
-)
+from recipes.models import Ingredient, Macros, Recipe
 
 FRAGMENT_KEY = "r"
 
@@ -135,11 +131,11 @@ def _ingredient_from_item(row: object) -> Ingredient:
     try:
         name = str(row.get("name") or "Ingredient")
         grams = float(row["grams"])
-        values = {key: float(row[key]) for key in MACRO_KEYS}
+        values = {key: float(row[key]) for key in CORE_NUTRIENTS}
         values.update(
             {
                 key: float(row[key])
-                for key in OPTIONAL_NUTRIENT_KEYS
+                for key in OPTIONAL_NUTRIENTS
                 if row.get(key) is not None
             }
         )

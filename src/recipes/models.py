@@ -22,45 +22,23 @@ PRODUCT_SOURCES = (
     "manual",
 )
 
-# The four a snapshot must carry to be usable for arithmetic at all.
-MACRO_KEYS = CORE_NUTRIENTS
-
-# The three optional nutrients the wire format carried before it widened, in
-# the order it carried them. Restated rather than derived because this is
-# history, not vocabulary: with the four macros they are the first seven keys
-# of every share link ever made, and the payload has no version field.
-_LEGACY_KEYS = ("fiber", "sodium", "sugar")
-
-# Carried when the source record has them and absent when it does not, so a
-# record that never stated its fibre cannot be read as one stating zero. The
-# rest of the shared vocabulary is appended rather than merged, so the legacy
-# names keep both their order and their positions, and sorted, so that adding
-# a name to the library cannot reshuffle the ones before it.
-OPTIONAL_NUTRIENT_KEYS = _LEGACY_KEYS + tuple(
-    sorted(set(NUTRIENTS) - set(MACRO_KEYS) - set(_LEGACY_KEYS))
-)
-
-# Every nutrient a snapshot may carry, in the order everything renders them.
-NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
-
 
 def _nutrients(values: Mapping[str, float | None]) -> dict[str, float | None]:
-    """One nutrient mapping in `NUTRIENT_KEYS` order, missing keys as null.
+    """One nutrient mapping in `NUTRIENTS` order, missing keys as null.
 
-    Key order lives here alone. Every wire format renders these keys in this
-    order, and the share payload carries no version field, so a reordering
-    would silently break links that already exist.
+    The share payload carries no version field, so the library's order is the
+    wire order and a reordering there breaks links that already exist.
     """
-    unknown = sorted(set(values) - set(NUTRIENT_KEYS))
+    unknown = sorted(set(values) - set(NUTRIENTS))
     if unknown:
         raise TypeError(f"unknown nutrients: {', '.join(unknown)}")
 
     # Omitting one of the four is a caller bug, not an absent reading.
-    missing = [key for key in MACRO_KEYS if key not in values]
+    missing = [key for key in CORE_NUTRIENTS if key not in values]
     if missing:
         raise TypeError(f"missing nutrients: {', '.join(missing)}")
 
-    return {key: values.get(key) for key in NUTRIENT_KEYS}
+    return {key: values.get(key) for key in NUTRIENTS}
 
 
 @dataclass(frozen=True, init=False)
@@ -68,8 +46,8 @@ class Macros:
     """Nutrients for one whole product or ingredient.
 
     One mapping rather than a field per nutrient: adding a nutrient is then a
-    change to `NUTRIENT_KEYS` and nothing else. Kept private and copied on
-    read so a frozen snapshot cannot be edited through it.
+    change to the shared vocabulary and nothing else. Kept private and copied
+    on read so a frozen snapshot cannot be edited through it.
     """
 
     _values: dict[str, float | None]
@@ -99,7 +77,7 @@ class Macros:
         return {
             key: value
             for key, value in self._values.items()
-            if value is not None or key in MACRO_KEYS
+            if value is not None or key in CORE_NUTRIENTS
         }
 
     def scaled(self, factor: float) -> "Macros":
