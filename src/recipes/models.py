@@ -27,20 +27,20 @@ MACRO_KEYS = CORE_NUTRIENTS
 
 # The three optional nutrients the wire format carried before it widened, in
 # the order it carried them. Restated rather than derived because this is
-# history, not vocabulary: the seven names below are the first seven keys of
-# every share link ever made, and the payload has no version field.
+# history, not vocabulary: with the four macros they are the first seven keys
+# of every share link ever made, and the payload has no version field.
 _LEGACY_KEYS = ("fiber", "sodium", "sugar")
 
-# The rest of the shared vocabulary, appended alphabetically. Appended and not
-# merged so the legacy prefix keeps both its order and its positions; sorted
-# so that adding a name to the library cannot reshuffle the ones before it.
+# Carried when the source record has them and absent when it does not, so a
+# record that never stated its fibre cannot be read as one stating zero. The
+# rest of the shared vocabulary is appended rather than merged, so the legacy
+# names keep both their order and their positions, and sorted, so that adding
+# a name to the library cannot reshuffle the ones before it.
 OPTIONAL_NUTRIENT_KEYS = _LEGACY_KEYS + tuple(
     sorted(set(NUTRIENTS) - set(MACRO_KEYS) - set(_LEGACY_KEYS))
 )
 
 # Every nutrient a snapshot may carry, in the order everything renders them.
-# Carried when the source record has them and absent when it does not, so a
-# record that never stated its fibre cannot be read as one stating zero.
 NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
 
 
