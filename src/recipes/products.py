@@ -21,6 +21,7 @@ from pantry.store import Store
 from recipes.models import (
     MACRO_KEYS,
     OPTIONAL_NUTRIENT_KEYS,
+    Macros,
     Product,
     ProductLookup,
 )
@@ -86,7 +87,7 @@ def product_from_record(record: dict) -> Product:
         grams=(
             float(record["grams"]) if record.get("grams") is not None else None
         ),
-        **values,
+        nutrients=Macros(**values),
     )
 
 

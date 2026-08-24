@@ -6,6 +6,7 @@ its catalogue and is useless offline; the snapshot alone cannot be refreshed.
 Keeping both is what lets a recipe outlive the database it came from.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -30,21 +31,55 @@ OPTIONAL_NUTRIENT_KEYS = ("fiber", "sodium", "sugar")
 NUTRIENT_KEYS = MACRO_KEYS + OPTIONAL_NUTRIENT_KEYS
 
 
-@dataclass(frozen=True)
-class Macros:
-    """Nutrients for one whole product or ingredient."""
+def _nutrients(values: Mapping[str, float | None]) -> dict[str, float | None]:
+    """One nutrient mapping in `NUTRIENT_KEYS` order, missing keys as null.
 
-    kcal: float
-    protein: float
-    fat: float
-    carbs: float
-    fiber: float | None = None
-    sodium: float | None = None
-    sugar: float | None = None
+    Key order lives here alone. Every wire format renders these keys in this
+    order, and the share payload carries no version field, so a reordering
+    would silently break links that already exist.
+    """
+    unknown = sorted(set(values) - set(NUTRIENT_KEYS))
+    if unknown:
+        raise TypeError(f"unknown nutrients: {', '.join(unknown)}")
+
+    # Omitting one of the four is a caller bug, not an absent reading.
+    missing = [key for key in MACRO_KEYS if key not in values]
+    if missing:
+        raise TypeError(f"missing nutrients: {', '.join(missing)}")
+
+    return {key: values.get(key) for key in NUTRIENT_KEYS}
+
+
+@dataclass(frozen=True, init=False)
+class Macros:
+    """Nutrients for one whole product or ingredient.
+
+    One mapping rather than a field per nutrient: adding a nutrient is then a
+    change to `NUTRIENT_KEYS` and nothing else. Kept private and copied on
+    read so a frozen snapshot cannot be edited through it.
+    """
+
+    _values: dict[str, float | None]
+
+    def __init__(self, **values: float | None) -> None:
+        object.__setattr__(self, "_values", _nutrients(values))
 
     def as_dict(self) -> dict[str, float | None]:
         """Every standard nutrient. Unknown values are null, never zero."""
-        return {key: getattr(self, key) for key in NUTRIENT_KEYS}
+        return dict(self._values)
+
+    def scaled(self, factor: float) -> "Macros":
+        """The same nutrients for `factor` times the weight.
+
+        A nutrient the source never stated stays unstated: scaling an absent
+        reading into a zero would report it as sourced.
+        """
+        return Macros(
+            **{
+                key: None if value is None else value * factor
+                for key, value in self._values.items()
+            }
+        )
 
 
 @dataclass(frozen=True)
@@ -56,13 +91,7 @@ class Product:
     """
 
     name: str
-    kcal: float
-    protein: float
-    fat: float
-    carbs: float
-    fiber: float | None = None
-    sodium: float | None = None
-    sugar: float | None = None
+    nutrients: Macros
     source: str = ""
     id: str = ""
     brand: str = ""
@@ -72,16 +101,7 @@ class Product:
         """Nutrients for `grams`, or the record's own figures unscaled."""
         # Pantry's format: a record with no weight states per-100 g figures.
         basis = self.grams or 100.0
-        factor = (grams or basis) / basis
-        return Macros(
-            kcal=self.kcal * factor,
-            protein=self.protein * factor,
-            fat=self.fat * factor,
-            carbs=self.carbs * factor,
-            fiber=self.fiber * factor if self.fiber is not None else None,
-            sodium=self.sodium * factor if self.sodium is not None else None,
-            sugar=self.sugar * factor if self.sugar is not None else None,
-        )
+        return self.nutrients.scaled((grams or basis) / basis)
 
     def as_dict(self) -> dict[str, Any]:
         return {

@@ -19,7 +19,13 @@ from recipes.macros import (
     parse_servings,
     unresolved,
 )
-from recipes.models import Ingredient, Macros, Recipe
+from recipes.models import (
+    MACRO_KEYS,
+    OPTIONAL_NUTRIENT_KEYS,
+    Ingredient,
+    Macros,
+    Recipe,
+)
 
 FRAGMENT_KEY = "r"
 
@@ -129,13 +135,11 @@ def _ingredient_from_item(row: object) -> Ingredient:
     try:
         name = str(row.get("name") or "Ingredient")
         grams = float(row["grams"])
-        values = {
-            key: float(row[key]) for key in ("kcal", "protein", "fat", "carbs")
-        }
+        values = {key: float(row[key]) for key in MACRO_KEYS}
         values.update(
             {
                 key: float(row[key])
-                for key in ("fiber", "sodium", "sugar")
+                for key in OPTIONAL_NUTRIENT_KEYS
                 if row.get(key) is not None
             }
         )

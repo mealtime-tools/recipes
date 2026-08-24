@@ -1,8 +1,10 @@
 """Small tests for the behavior other tools rely on."""
 
+import dataclasses
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 from click.testing import CliRunner
 
@@ -11,13 +13,60 @@ from recipes.codec import (
     ShareUrlError,
     decode_payload,
     encode_payload,
+    payload_of,
     recipe_from_payload,
     share_url,
 )
-from recipes.models import Ingredient, Macros, Recipe
+from recipes.models import Ingredient, Macros, Product, Recipe
 from recipes.products import product_from_record
 from recipes.render import describe
-from recipes.store import StoreError, load_recipe, write
+from recipes.resolve import resolve_recipe
+from recipes.store import StoreError, dump_recipe, load_recipe, write
+
+# Spelled out, not imported: a test sharing the constant cannot catch a reorder.
+WIRE_NUTRIENT_KEYS = [
+    "kcal",
+    "protein",
+    "fat",
+    "carbs",
+    "fiber",
+    "sodium",
+    "sugar",
+]
+
+
+def _pinned_recipe() -> Recipe:
+    """One recipe covering both a fully stated and a partly stated snapshot."""
+    return Recipe(
+        name="Toast",
+        servings=2,
+        tags=["breakfast"],
+        notes="Toast it.",
+        ingredients=[
+            Ingredient(
+                source="manual",
+                id="sourdough",
+                grams=60,
+                name="Sourdough",
+                macros=Macros(
+                    kcal=258,
+                    protein=9.1,
+                    fat=2.1,
+                    carbs=47.5,
+                    fiber=2.4,
+                    sodium=0.5,
+                    sugar=1.2,
+                ),
+            ),
+            Ingredient(
+                source="manual",
+                id="butter",
+                grams=10,
+                name="Butter",
+                macros=Macros(kcal=74, protein=0.1, fat=8.1, carbs=0),
+            ),
+        ],
+    )
 
 
 def test_product_records_accept_canonical_names_and_preserve_zero() -> None:
@@ -33,9 +82,10 @@ def test_product_records_accept_canonical_names_and_preserve_zero() -> None:
         }
     )
 
-    assert product.carbs == 0
-    assert product.fiber is None
-    assert product.macros(45).protein == 0
+    stated = product.nutrients.as_dict()
+    assert stated["carbs"] == 0
+    assert stated["fiber"] is None
+    assert product.macros(45).as_dict()["protein"] == 0
 
 
 def test_recipe_output_uses_null_for_unknown_and_zero_for_zero() -> None:
@@ -124,7 +174,7 @@ def test_edit_appends_a_piped_item(tmp_path: Path) -> None:
     ingredient = load_recipe(
         Path(json.loads(result.output)["data"]["path"])
     ).ingredients[0]
-    assert ingredient.macros.protein == 20
+    assert ingredient.macros.as_dict()["protein"] == 20
 
 
 def _edit_input(tmp_path: Path, item: dict, *args: str) -> object:
@@ -185,7 +235,7 @@ def test_edit_honours_a_stated_weight(tmp_path: Path) -> None:
         Path(json.loads(result.output)["data"]["path"])
     ).ingredients[0]
     assert ingredient.grams == 42
-    assert ingredient.macros.kcal == 153
+    assert ingredient.macros.as_dict()["kcal"] == 153
 
 
 def test_edit_refuses_an_explicit_null_weight(tmp_path: Path) -> None:
@@ -236,7 +286,7 @@ def test_edit_appends_an_eatout_meal_given_a_weight(tmp_path: Path) -> None:
     assert payload["grams"] == 350
     ingredient = load_recipe(Path(payload["path"])).ingredients[0]
     assert ingredient.grams == 350
-    assert ingredient.macros.kcal == 356
+    assert ingredient.macros.as_dict()["kcal"] == 356
 
 
 def test_stored_ingredient_needs_a_stated_weight(tmp_path: Path) -> None:
@@ -306,3 +356,175 @@ def test_share_codec_round_trips_current_format() -> None:
 
     encoded = share_url(recipe, "https://example.test/").split("#r=")[1]
     assert encode_payload(decode_payload(encoded)) == encoded
+
+
+def test_macros_as_dict_key_order_is_the_wire_format() -> None:
+    macros = Macros(kcal=1, protein=2, fat=3, carbs=4)
+
+    assert list(macros.as_dict()) == WIRE_NUTRIENT_KEYS
+
+
+def test_macros_requires_the_four_arithmetic_nutrients() -> None:
+    with pytest.raises(TypeError):
+        Macros(kcal=1, protein=2, fat=3)  # type: ignore[call-arg]
+
+
+def test_macros_is_a_frozen_snapshot() -> None:
+    macros = Macros(kcal=1, protein=2, fat=3, carbs=4)
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        macros.kcal = 99  # type: ignore[misc]
+
+    # By copy: editing what was handed out must not reach into the snapshot.
+    borrowed = macros.as_dict()
+    borrowed["kcal"] = 99
+    assert macros.as_dict()["kcal"] == 1
+
+
+def test_share_payload_json_is_byte_identical() -> None:
+    payload = payload_of(_pinned_recipe())
+
+    # No version field, so the exact text is the compatibility test.
+    assert json.dumps(payload, separators=(",", ":")) == (
+        '{"name":"Toast","servings":2,"notes":"Toast it.",'
+        '"tags":["breakfast"],'
+        '"ingredients":['
+        '{"name":"Sourdough","grams":60,"kcal":258,"protein":9.1,"fat":2.1,'
+        '"carbs":47.5,"fiber":2.4,"sodium":0.5,"sugar":1.2},'
+        '{"name":"Butter","grams":10,"kcal":74,"protein":0.1,"fat":8.1,'
+        '"carbs":0,"fiber":null,"sodium":null,"sugar":null}]}'
+    )
+    assert decode_payload(encode_payload(payload)) == payload
+
+
+def test_recipe_yaml_is_byte_identical() -> None:
+    assert dump_recipe(_pinned_recipe()) == (
+        "name: Toast\n"
+        "servings: 2\n"
+        "tags:\n"
+        "- breakfast\n"
+        "notes: Toast it.\n"
+        "ingredients:\n"
+        "- source: manual\n"
+        "  id: sourdough\n"
+        "  grams: 60\n"
+        "  name: Sourdough\n"
+        "  kcal: 258\n"
+        "  protein: 9.1\n"
+        "  fat: 2.1\n"
+        "  carbs: 47.5\n"
+        "  fiber: 2.4\n"
+        "  sodium: 0.5\n"
+        "  sugar: 1.2\n"
+        "- source: manual\n"
+        "  id: butter\n"
+        "  grams: 10\n"
+        "  name: Butter\n"
+        "  kcal: 74\n"
+        "  protein: 0.1\n"
+        "  fat: 8.1\n"
+        "  carbs: 0\n"
+        "  fiber: null\n"
+        "  sodium: null\n"
+        "  sugar: null\n"
+    )
+
+
+def test_product_scales_every_nutrient_it_states() -> None:
+    record = {
+        "name": "Oats",
+        "grams": 50,
+        "kcal": 100,
+        "protein": 8,
+        "fat": 4,
+        "carbs": 20,
+        "fiber": 2,
+        "sodium": 0.4,
+        "sugar": 1.6,
+    }
+
+    # Every nutrient scales, so a forgotten one shows up as a wrong number.
+    assert product_from_record(record).macros(125).as_dict() == {
+        "kcal": 250,
+        "protein": 20,
+        "fat": 10,
+        "carbs": 50,
+        "fiber": 5,
+        "sodium": 1.0,
+        "sugar": 4.0,
+    }
+
+
+def test_product_scaling_leaves_an_unstated_nutrient_unstated() -> None:
+    record = {
+        "name": "Oats",
+        "grams": 50,
+        "kcal": 100,
+        "protein": 8,
+        "fat": 4,
+        "carbs": 20,
+        "fiber": 2,
+    }
+
+    scaled = product_from_record(record).macros(125).as_dict()
+
+    assert scaled["fiber"] == 5
+    assert scaled["sodium"] is None
+    assert scaled["sugar"] is None
+
+
+def test_product_without_a_weight_scales_from_one_hundred_grams() -> None:
+    product = product_from_record(
+        {"name": "Oats", "kcal": 100, "protein": 8, "fat": 4, "carbs": 20}
+    )
+
+    assert product.macros().as_dict()["kcal"] == 100
+    assert product.macros(50).as_dict()["kcal"] == 50
+
+
+class _FakeLookup:
+    """A lookup returning one product, for pinning resolve's change report."""
+
+    def __init__(self, product: Product) -> None:
+        self.product = product
+
+    def lookup(self, source: str, id: str) -> Product | None:
+        return self.product
+
+
+def test_resolve_reports_a_changed_optional_nutrient_per_key() -> None:
+    recipe = Recipe(
+        name="Oats",
+        ingredients=[
+            Ingredient(
+                source="manual",
+                id="oats",
+                grams=100,
+                name="Oats",
+                macros=Macros(kcal=100, protein=8, fat=4, carbs=20),
+            )
+        ],
+    )
+    lookup = _FakeLookup(
+        product_from_record(
+            {
+                "name": "Oats",
+                "grams": 100,
+                "kcal": 100,
+                "protein": 8,
+                "fat": 4,
+                "carbs": 20,
+                "fiber": 9,
+            }
+        )
+    )
+
+    outcome = resolve_recipe(recipe, lookup, force=True)
+
+    assert outcome.changes == [
+        {
+            "ref": "manual:oats",
+            "name": "Oats",
+            "fields": {"fiber": {"before": None, "after": 9.0}},
+        }
+    ]

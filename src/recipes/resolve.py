@@ -66,12 +66,14 @@ def _changed_fields(before: Ingredient, after: Ingredient) -> dict[str, dict]:
     be totalled for that nutrient at all, so it is reported with `None` on
     whichever side of the change lacked it.
     """
+    assert before.macros is not None and after.macros is not None
     fields: dict[str, dict] = {}
     if before.name != after.name:
         fields["name"] = {"before": before.name, "after": after.name}
 
+    old_values, new_values = before.macros.as_dict(), after.macros.as_dict()
     for key in NUTRIENT_KEYS:
-        old, new = getattr(before.macros, key), getattr(after.macros, key)
+        old, new = old_values[key], new_values[key]
         if old != new:
             fields[key] = {"before": old, "after": new}
 
