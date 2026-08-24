@@ -55,22 +55,23 @@ wheels = [
 
 [[package]]
 name = "mealtime-pantry"
-version = "0.1.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "click-agentcli" },
+    { name = "mealtime-nutrients" },
     { name = "python-dotenv" },
     { name = "rapidfuzz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1e/fd/febdbfa21b29b08603f8dca5fd7e1d5212d42859d6a33271cd87435602ab/mealtime_pantry-0.1.0.tar.gz", hash = "sha256:907b007265f42e478ae6ad071123ef844d6587941aeb242ecd8b09362af5165f", size = 125772, upload-time = "2026-08-21T03:28:40.26Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/c6/56298ff08f7d4117d5841bf7ba28787413660d06865579d0ea39ccabea30/mealtime_pantry-0.3.0.tar.gz", hash = "sha256:b40d72f276b7773a44dfde5f57d64979867159f3e0a57a9089ebe117ea71c72e", size = 109028, upload-time = "2026-08-24T23:47:44.128Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/2e/4d86e0af1e173aa2ab3a5fe02d8d5162defba8d896e65815cd0b44c8a36a/mealtime_pantry-0.1.0-py3-none-any.whl", hash = "sha256:ff1547785fc9e382259f8a8759f04104b8c378d86ef164f4667cca6cdd3ec2cd", size = 120909, upload-time = "2026-08-21T03:28:38.748Z" },
+    { url = "https://files.pythonhosted.org/packages/45/48/19634ee7b0f389c633d3cccbe0e8863edad9d76d12773b2bb0ce76ddbd0e/mealtime_pantry-0.3.0-py3-none-any.whl", hash = "sha256:63e59c533b7692d690472f61d252a30ea248f5af3b6adb1fb232813d923d2820", size = 98982, upload-time = "2026-08-24T23:47:42.814Z" },
 ]
 
 [[package]]
 name = "mealtime-recipes"
-version = "0.2.2"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -92,7 +93,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "click-agentcli", specifier = ">=0.1.0" },
     { name = "mealtime-nutrients", specifier = ">=0.3.0" },
-    { name = "mealtime-pantry", specifier = ">=0.1.0" },
+    { name = "mealtime-pantry", specifier = ">=0.3.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
