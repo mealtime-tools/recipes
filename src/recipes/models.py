@@ -8,7 +8,7 @@ Keeping both is what lets a recipe outlive the database it came from.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
 
@@ -136,16 +136,6 @@ class Product:
         # Pantry's format: a record with no weight states per-100 g figures.
         basis = self.grams or 100.0
         return self.nutrients.scaled((grams or basis) / basis)
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "source": self.source,
-            "id": self.id,
-            "name": self.name,
-            "brand": self.brand,
-            "grams": self.grams,
-            **self.macros().as_dict(),
-        }
 
 
 @runtime_checkable
