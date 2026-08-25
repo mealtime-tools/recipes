@@ -24,7 +24,7 @@ from recipes.render import describe, macro_summary
 from recipes.resolve import resolve_recipe
 from recipes.store import StoreError, dump_recipe, load_recipe, write
 
-# Spelled out, not imported: a test sharing the constant cannot catch a reorder.
+# Spelled out: a test sharing the constant cannot catch a reorder.
 WIRE_NUTRIENT_KEYS = [
     "kcal",
     "protein",
@@ -713,7 +713,7 @@ def test_resolve_reports_a_changed_optional_nutrient_per_key() -> None:
 
 
 def test_resolve_reports_a_vanished_optional_nutrient() -> None:
-    """Why `_changed_fields` reads the exhaustive mapping, not the stated one."""
+    """Why `_changed_fields` reads the exhaustive mapping, not `stated`."""
     recipe = Recipe(
         name="Oats",
         ingredients=[

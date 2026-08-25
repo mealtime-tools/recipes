@@ -261,7 +261,7 @@ def _sole(matches: list[Stored], name: str) -> Stored:
 
 
 def _one(matches: list[Stored], name: str) -> Stored | None:
-    """`_sole`, but no file claiming the name is a miss rather than an error."""
+    """`_sole`, but no file claiming the name is a miss, not an error."""
     return _sole(matches, name) if matches else None
 
 
