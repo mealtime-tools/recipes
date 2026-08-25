@@ -7,6 +7,10 @@ out of Pages logs and referrers, and it escapes query-length limits.
 
 Wire format (see SPEC): `base64url(raw_deflate(compact_json))`, `=` stripped.
 The compressed JSON uses the same readable fields as every other component.
+
+JSON has no decimal type and this payload has no version field, so a figure
+travels as the plain number `figure_number` writes: byte for byte what every
+link already in the wild carries.
 """
 
 import base64
@@ -18,10 +22,11 @@ from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
 from recipes.macros import (
     IncompleteRecipe,
     compact_number,
+    figure_numbers,
     parse_servings,
     unresolved,
 )
-from recipes.models import Ingredient, Macros, Recipe
+from recipes.models import Ingredient, Macros, Recipe, to_decimal
 
 FRAGMENT_KEY = "r"
 
@@ -61,7 +66,7 @@ def _item_of(item: Ingredient) -> dict:
     return {
         "name": item.name or item.ref,
         "grams": compact_number(item.grams),
-        **macros.stated(),
+        **figure_numbers(macros.stated()),
     }
 
 
@@ -130,10 +135,10 @@ def _ingredient_from_item(row: object) -> Ingredient:
     try:
         name = str(row.get("name") or "Ingredient")
         grams = float(row["grams"])
-        values = {key: float(row[key]) for key in CORE_NUTRIENTS}
+        values = {key: to_decimal(row[key]) for key in CORE_NUTRIENTS}
         values.update(
             {
-                key: float(row[key])
+                key: to_decimal(row[key])
                 for key in OPTIONAL_NUTRIENTS
                 if row.get(key) is not None
             }

@@ -12,6 +12,7 @@ from pathlib import Path
 from mealtime_nutrients import NUTRIENTS
 
 from recipes import store
+from recipes.macros import figure_number
 from recipes.models import Ingredient, ProductLookup, Recipe
 
 
@@ -66,6 +67,10 @@ def _changed_fields(before: Ingredient, after: Ingredient) -> dict[str, dict]:
     nutrient appearing or vanishing is one: it decides whether the recipe can
     be totalled for that nutrient at all, so it is reported with `None` on
     whichever side of the change lacked it.
+
+    Reported as plain numbers, because this report is JSON. Compared as
+    decimals first, so a figure that only regained a trailing zero is not
+    news: `Decimal("5.0")` and `Decimal("5")` are the same reading.
     """
     assert before.macros is not None and after.macros is not None
     fields: dict[str, dict] = {}
@@ -76,7 +81,10 @@ def _changed_fields(before: Ingredient, after: Ingredient) -> dict[str, dict]:
     for key in NUTRIENTS:
         old, new = old_values[key], new_values[key]
         if old != new:
-            fields[key] = {"before": old, "after": new}
+            fields[key] = {
+                "before": figure_number(old),
+                "after": figure_number(new),
+            }
 
     return fields
 

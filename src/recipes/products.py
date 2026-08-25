@@ -11,7 +11,7 @@ changes. `resolve_lookup` returns its local product source instead of
 
 import json
 import os
-from math import isfinite
+from decimal import Decimal
 from pathlib import Path
 
 import click
@@ -19,7 +19,7 @@ from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
 from pantry import data as pantry_data
 from pantry.store import Store
 
-from recipes.models import Macros, Product, ProductLookup
+from recipes.models import Macros, Product, ProductLookup, to_decimal
 
 
 class ProductError(Exception):
@@ -42,21 +42,24 @@ def product_from_record(record: dict) -> Product:
     name in the shared vocabulary, and a second conversion here is a second
     place for the ratio to be wrong. A missing figure is refused rather than
     defaulted: an inferred zero under-counts every recipe using the product.
+
+    Pantry still stores plain JSON numbers, so a figure arrives as a float and
+    is read through the text that denotes it, never its binary expansion.
     """
-    values: dict[str, float] = {}
+    values: dict[str, Decimal] = {}
     for field in CORE_NUTRIENTS:
         if record.get(field) is None:
             raise ProductError(f"record carries no {field}")
-        values[field] = float(record[field])
+        values[field] = to_decimal(record[field])
 
     # Left unset when the record does not state it: pantry infers no zero.
     for field in OPTIONAL_NUTRIENTS:
         if record.get(field) is not None:
-            values[field] = float(record[field])
+            values[field] = to_decimal(record[field])
 
     # `NaN` and `Infinity` are readable JSON and crash `round_js` later.
     for field, value in values.items():
-        if not isfinite(value):
+        if not value.is_finite():
             raise ProductError(f"record has an unusable {field}: {value}")
 
     return Product(

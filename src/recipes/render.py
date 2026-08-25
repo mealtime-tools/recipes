@@ -8,8 +8,15 @@ from collections.abc import Iterable
 
 from mealtime_nutrients import NUTRIENTS
 
-from recipes.macros import is_complete, recipe_macros, round_js, unresolved
-from recipes.models import Recipe
+from recipes.macros import (
+    figure_number,
+    figure_numbers,
+    is_complete,
+    recipe_macros,
+    round_js,
+    unresolved,
+)
+from recipes.models import Recipe, to_decimal
 
 
 def ingredient_rows(recipe: Recipe) -> list[dict]:
@@ -21,7 +28,7 @@ def ingredient_rows(recipe: Recipe) -> list[dict]:
             "grams": item.grams,
             "name": item.name,
             # No snapshot, no figures: the same choice `store` makes.
-            **(item.macros.stated() if item.macros else {}),
+            **(figure_numbers(item.macros.stated()) if item.macros else {}),
         }
         for item in recipe.ingredients
     ]
@@ -35,22 +42,27 @@ def describe(recipe: Recipe) -> dict:
     the four macros are here exactly when `complete` is true. An agent cannot
     mistake a partial sum for a total. No share URL: building one needs a
     configured viewer, which only `share` has.
+
+    JSON has no decimal type, so every figure leaves as the plain number
+    `figure_number` writes -- the same one the share payload carries.
     """
     complete = is_complete(recipe)
     macros = recipe_macros(recipe) if complete else None
-    grams = sum(item.grams for item in recipe.ingredients)
+    grams = to_decimal(sum(item.grams for item in recipe.ingredients))
 
     return {
         "name": recipe.name,
         "servings": recipe.servings,
         "tags": list(recipe.tags),
         "notes": recipe.notes,
-        "grams": (round_js(grams / recipe.servings) if grams else None),
+        "grams": (
+            figure_number(round_js(grams / recipe.servings)) if grams else None
+        ),
         "ingredients": ingredient_rows(recipe),
         "complete": complete,
         "unresolved": unresolved(recipe),
         # Already only the totals `recipe_macros` was entitled to compute.
-        **(macros.per_serving if macros else {}),
+        **(figure_numbers(macros.per_serving) if macros else {}),
     }
 
 
