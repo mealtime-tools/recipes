@@ -8,6 +8,7 @@ Keeping both is what lets a recipe outlive the database it came from.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from typing import Protocol, runtime_checkable
 
 from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
@@ -21,6 +22,26 @@ PRODUCT_SOURCES = (
     "openfoodfacts",
     "manual",
 )
+
+# What a figure may arrive as. Pantry and every JSON source still send floats.
+Figure = Decimal | float | int | str
+
+
+def to_decimal(value: Figure) -> Decimal:
+    """One figure as a decimal, whatever the source handed over.
+
+    A float is read through the shortest text that denotes it, so a source
+    that wrote `0.5` yields `Decimal("0.5")` and not the binary expansion
+    `Decimal(0.5)` would give. Refuses like `float` did, as a `ValueError`,
+    because every caller already maps that onto its own refusal.
+    """
+    if isinstance(value, Decimal):
+        return value
+
+    try:
+        return Decimal(str(value))
+    except InvalidOperation as exc:
+        raise ValueError(f"not a number: {value!r}") from exc
 
 
 def _nutrients(values: Mapping[str, float | None]) -> dict[str, float | None]:

@@ -2,6 +2,7 @@
 
 import dataclasses
 import json
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,8 @@ from recipes.codec import (
     recipe_from_payload,
     share_url,
 )
-from recipes.models import Ingredient, Macros, Product, Recipe
+from recipes.macros import figure_number
+from recipes.models import Ingredient, Macros, Product, Recipe, to_decimal
 from recipes.products import ProductError, product_from_record
 from recipes.render import describe, macro_summary
 from recipes.resolve import resolve_recipe
@@ -662,6 +664,28 @@ def test_product_without_a_weight_scales_from_one_hundred_grams() -> None:
 
     assert product.macros().as_dict()["kcal"] == 100
     assert product.macros(50).as_dict()["kcal"] == 50
+
+
+def test_a_figure_reads_as_the_text_that_denotes_it() -> None:
+    """Not the binary expansion, which is where the noise comes from."""
+    assert to_decimal(0.1) == Decimal("0.1")
+    assert to_decimal(5) == Decimal(5)
+    assert to_decimal(Decimal("2.10")) == Decimal("2.1")
+
+    with pytest.raises(ValueError):
+        to_decimal("not a number")
+
+
+def test_a_figure_is_written_as_a_plain_number() -> None:
+    """Neither YAML nor the share payload has a decimal type."""
+    assert figure_number(Decimal("0.5")) == 0.5
+    assert figure_number(Decimal("258")) == 258
+    assert isinstance(figure_number(Decimal("258")), int)
+
+    # A figure written with a decimal point keeps one, and no more than it has.
+    assert repr(figure_number(Decimal("5.0"))) == "5.0"
+    assert repr(figure_number(Decimal("1743.250"))) == "1743.25"
+    assert figure_number(None) is None
 
 
 class _FakeLookup:

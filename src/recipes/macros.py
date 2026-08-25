@@ -6,7 +6,9 @@ second implementation that treated a missing snapshot as zero.
 """
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 
 from mealtime_nutrients import NUTRIENTS, OPTIONAL_NUTRIENTS
 
@@ -41,11 +43,38 @@ def round_js(value: float, places: int = 2) -> float:
     return rounded / power
 
 
+def figure_number(value: Decimal | None) -> int | float | None:
+    """One figure as the plain number a YAML or JSON document can hold.
+
+    Neither format has a decimal type, so a figure is written as the number
+    that denotes it: an integer where the decimal has no fractional digits,
+    and otherwise the double `float` gives -- which prints as the shortest
+    text that reads back, and is the value every share link already carries.
+    """
+    if value is None:
+        return None
+
+    # A non-finite exponent is `'n'`, `'N'` or `'F'`, never a place count.
+    exponent = value.as_tuple().exponent
+    if not isinstance(exponent, int) or exponent < 0:
+        return float(value)
+
+    return int(value)
+
+
+def figure_numbers(
+    values: Mapping[str, Decimal | None],
+) -> dict[str, int | float | None]:
+    """`figure_number` over one nutrient mapping, order intact."""
+    return {key: figure_number(value) for key, value in values.items()}
+
+
 def compact_number(value: float) -> float | int:
     """Render a whole amount without a trailing `.0`.
 
     Shared by the YAML store and the share payload: `475` is what a human
-    diffs and what the golden vectors pin, and `475.0` is neither.
+    diffs and what the golden vectors pin, and `475.0` is neither. Weights,
+    not figures: a weight is authored, so it never accumulates arithmetic.
     """
     return int(value) if float(value).is_integer() else float(value)
 
