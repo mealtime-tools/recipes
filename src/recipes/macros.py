@@ -5,8 +5,9 @@ There is deliberately no second, laxer path: the bug this port fixes was a
 second implementation that treated a missing snapshot as zero.
 """
 
-import math
+from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 
 from mealtime_nutrients import NUTRIENTS, OPTIONAL_NUTRIENTS
 
@@ -27,25 +28,50 @@ class IncompleteRecipe(Exception):
         self.errors = errors
 
 
-def round_js(value: float, places: int = 2) -> float:
+def round_js(value: Decimal, places: int = 2) -> Decimal:
     """Round half away from zero, matching the reference's `Math.round`.
 
     Python's built-in `round` is banker's rounding, which would disagree with
-    every figure the TypeScript version ever printed.
+    every figure the TypeScript version ever printed. `ROUND_HALF_UP` is the
+    decimal spelling of the same rule for a non-negative figure, and every
+    nutrient is one. It parts from `Math.round` only below zero, where
+    JavaScript sends a tie towards `+Infinity`: `Math.round(-0.5)` is `-0`.
     """
-    power = 10**places
-    scaled = value * power
-    rounded = (
-        math.floor(scaled + 0.5) if value >= 0 else math.ceil(scaled - 0.5)
-    )
-    return rounded / power
+    return value.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+
+
+def figure_number(value: Decimal | None) -> int | float | None:
+    """One figure as the plain number a YAML or JSON document can hold.
+
+    Neither format has a decimal type, so a figure is written as the number
+    that denotes it: an integer where the decimal has no fractional digits,
+    and otherwise the double `float` gives -- which prints as the shortest
+    text that reads back, and is the value every share link already carries.
+    """
+    if value is None:
+        return None
+
+    # A non-finite exponent is `'n'`, `'N'` or `'F'`, never a place count.
+    exponent = value.as_tuple().exponent
+    if not isinstance(exponent, int) or exponent < 0:
+        return float(value)
+
+    return int(value)
+
+
+def figure_numbers(
+    values: Mapping[str, Decimal | None],
+) -> dict[str, int | float | None]:
+    """`figure_number` over one nutrient mapping, order intact."""
+    return {key: figure_number(value) for key, value in values.items()}
 
 
 def compact_number(value: float) -> float | int:
     """Render a whole amount without a trailing `.0`.
 
     Shared by the YAML store and the share payload: `475` is what a human
-    diffs and what the golden vectors pin, and `475.0` is neither.
+    diffs and what the golden vectors pin, and `475.0` is neither. Weights,
+    not figures: a weight is authored, so it never accumulates arithmetic.
     """
     return int(value) if float(value).is_integer() else float(value)
 
@@ -75,7 +101,7 @@ def is_complete(recipe: Recipe) -> bool:
 
 
 def _absent_from(
-    stated: list[tuple[str, dict[str, float | None]]],
+    stated: list[tuple[str, dict[str, Decimal | None]]],
 ) -> set[str]:
     """Every optional nutrient at least one ingredient does not state.
 
@@ -93,7 +119,7 @@ def _absent_from(
     }
 
 
-def ingredient_macros(item: Ingredient) -> dict[str, float | None]:
+def ingredient_macros(item: Ingredient) -> dict[str, Decimal | None]:
     """Return the nutrients stored for this ingredient."""
     if item.macros is None:
         raise ValueError(f"{item.ref}: no macro snapshot")
@@ -103,8 +129,8 @@ def ingredient_macros(item: Ingredient) -> dict[str, float | None]:
 
 @dataclass(frozen=True)
 class RecipeMacros:
-    total: dict[str, float]
-    per_serving: dict[str, float]
+    total: dict[str, Decimal]
+    per_serving: dict[str, Decimal]
 
 
 def recipe_macros(recipe: Recipe) -> RecipeMacros:
@@ -120,16 +146,17 @@ def recipe_macros(recipe: Recipe) -> RecipeMacros:
         (item.ref, ingredient_macros(item)) for item in recipe.ingredients
     ]
     absent = _absent_from(scaled)
-    totals = {key: 0.0 for key in NUTRIENTS if key not in absent}
+    totals = {key: Decimal(0) for key in NUTRIENTS if key not in absent}
     for _, values in scaled:
         for key in totals:
             value = values[key]
             assert value is not None
             totals[key] += value
 
+    divisor = Decimal(servings)
     return RecipeMacros(
         total={key: round_js(value) for key, value in totals.items()},
         per_serving={
-            key: round_js(value / servings) for key, value in totals.items()
+            key: round_js(value / divisor) for key, value in totals.items()
         },
     )

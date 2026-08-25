@@ -2,6 +2,7 @@
 
 import dataclasses
 import json
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,8 @@ from recipes.codec import (
     recipe_from_payload,
     share_url,
 )
-from recipes.models import Ingredient, Macros, Product, Recipe
+from recipes.macros import figure_number, recipe_macros, round_js
+from recipes.models import Ingredient, Macros, Product, Recipe, to_decimal
 from recipes.products import ProductError, product_from_record
 from recipes.render import describe, macro_summary
 from recipes.resolve import resolve_recipe
@@ -662,6 +664,144 @@ def test_product_without_a_weight_scales_from_one_hundred_grams() -> None:
 
     assert product.macros().as_dict()["kcal"] == 100
     assert product.macros(50).as_dict()["kcal"] == 50
+
+
+def test_a_figure_reads_as_the_text_that_denotes_it() -> None:
+    """Not the binary expansion, which is where the noise comes from."""
+    assert to_decimal(0.1) == Decimal("0.1")
+    assert to_decimal(5) == Decimal(5)
+    assert to_decimal(Decimal("2.10")) == Decimal("2.1")
+
+    with pytest.raises(ValueError):
+        to_decimal("not a number")
+
+
+def test_scaling_a_figure_keeps_it_a_decimal() -> None:
+    """The regression: 2.8 g of fat in 10 g of a per-100 g record.
+
+    As binary floats `2.8 * (10 / 100)` is `0.27999999999999997`, and that
+    noise was landing in stored recipes and in share links.
+    """
+    record = {
+        "name": "Garlic, peeled, fresh, raw",
+        "kcal": 124.8,
+        "protein": 6.1,
+        "fat": 2.8,
+        "carbs": 10.2,
+    }
+
+    scaled = product_from_record(record).macros(10).as_dict()
+
+    assert scaled["fat"] == Decimal("0.28")
+    assert str(scaled["fat"]) == "0.28"
+    assert 2.8 * (10 / 100) != 0.28
+
+
+def test_every_figure_is_a_decimal() -> None:
+    """The type, not the value: a figure is a decimal a label printed."""
+    macros = Macros(kcal=258, protein=9.1, fat=Decimal("2.1"), carbs=47.5)
+
+    assert all(
+        isinstance(value, Decimal) for value in macros.stated().values()
+    )
+    assert macros.as_dict()["fiber"] is None
+
+
+def test_a_figure_is_written_as_a_plain_number() -> None:
+    """Neither YAML nor the share payload has a decimal type."""
+    assert figure_number(Decimal("0.5")) == 0.5
+    assert figure_number(Decimal("258")) == 258
+    assert isinstance(figure_number(Decimal("258")), int)
+
+    # A figure written with a decimal point keeps one, and no more than it has.
+    assert repr(figure_number(Decimal("5.0"))) == "5.0"
+    assert repr(figure_number(Decimal("1743.250"))) == "1743.25"
+    assert figure_number(None) is None
+
+
+def test_a_figure_is_written_the_way_its_source_states_it() -> None:
+    """A source that states `5` means five, and gets `5` back.
+
+    Widening every figure to a float, as `float()` used to, is what made a
+    payload built from the `258` in a share link come back as `258.0`. The
+    two are the same number to every reader, and the wire keeps the shorter.
+    """
+    record = {
+        "name": "Soy Milk",
+        "kcal": 43,
+        "protein": 2.4,
+        "fat": 2.2,
+        "carbs": 5,
+    }
+    macros = product_from_record(record).macros(100).stated()
+
+    assert repr(figure_number(macros["carbs"])) == "5"
+    assert repr(figure_number(macros["fat"])) == "2.2"
+
+    # And a figure a file states with a decimal point keeps it, unchanged.
+    assert repr(figure_number(to_decimal(5.0))) == "5.0"
+
+
+def test_rounding_a_tie_goes_away_from_zero() -> None:
+    """`ROUND_HALF_UP` is the rule `round_js` always claimed to implement.
+
+    Binary floats only approximate it: `0.145` is a hair under the tie as a
+    double, so the old `floor(value * 100 + 0.5)` rounded it down.
+    """
+    assert round_js(Decimal("0.145")) == Decimal("0.15")
+    assert round_js(Decimal("0.144")) == Decimal("0.14")
+
+    # Away from zero on both sides; JavaScript's Math.round(-0.5) is -0.
+    assert round_js(Decimal("-0.145")) == Decimal("-0.15")
+
+
+def test_totals_add_up_without_binary_noise() -> None:
+    recipe = Recipe(
+        name="Thirds",
+        servings=3,
+        ingredients=[
+            Ingredient(
+                source="manual",
+                id=str(index),
+                grams=10,
+                name="Tenth",
+                macros=Macros(kcal=1, protein=0, fat=Decimal("0.1"), carbs=0),
+            )
+            for index in range(3)
+        ],
+    )
+
+    totals = recipe_macros(recipe)
+
+    assert totals.total["fat"] == Decimal("0.3")
+    assert totals.per_serving["fat"] == Decimal("0.1")
+
+
+def test_a_float_formatted_file_round_trips_byte_for_byte(
+    tmp_path: Path,
+) -> None:
+    """Every stored recipe was written before figures were decimals.
+
+    Float noise a file already carries is data, not something to clean up
+    behind the user's back: reading one changes no byte of it.
+    """
+    text = (
+        "name: Cookie Dough\n"
+        "servings: 1\n"
+        "ingredients:\n"
+        "- source: afcd\n"
+        "  id: F009350\n"
+        "  grams: 5\n"
+        "  name: Vanilla bean extract\n"
+        "  kcal: 14.375\n"
+        "  protein: 0.005000000000000001\n"
+        "  fat: 0.005000000000000001\n"
+        "  carbs: 0.0\n"
+    )
+    path = tmp_path / "old.yaml"
+    path.write_text(text)
+
+    assert dump_recipe(load_recipe(path)) == text
 
 
 class _FakeLookup:

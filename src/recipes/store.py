@@ -13,15 +13,20 @@ import hashlib
 import os
 import re
 from dataclasses import dataclass
-from math import isfinite
 from pathlib import Path
 from typing import Any
 
 import yaml
 from mealtime_nutrients import CORE_NUTRIENTS, OPTIONAL_NUTRIENTS
 
-from recipes.macros import compact_number, parse_servings
-from recipes.models import PRODUCT_SOURCES, Ingredient, Macros, Recipe
+from recipes.macros import compact_number, figure_numbers, parse_servings
+from recipes.models import (
+    PRODUCT_SOURCES,
+    Ingredient,
+    Macros,
+    Recipe,
+    to_decimal,
+)
 
 SUFFIX = ".yaml"
 
@@ -95,15 +100,16 @@ def _nutrients_from(raw: dict[str, Any], ref: str) -> Macros | None:
     if missing:
         raise StoreError(f"{ref}: nutrients missing {', '.join(missing)}")
 
-    values = {key: float(raw[key]) for key in CORE_NUTRIENTS}
+    # Read as decimals: a file says `0.28`, and that is the figure it means.
+    values = {key: to_decimal(raw[key]) for key in CORE_NUTRIENTS}
 
     # An optional nutrient the file omits stays unstated, never a zero.
     for key in OPTIONAL_NUTRIENTS:
         if raw.get(key) is not None:
-            values[key] = float(raw[key])
+            values[key] = to_decimal(raw[key])
 
     # `.nan` and `.inf` are readable YAML floats and crash `round_js` later.
-    unusable = [key for key, value in values.items() if not isfinite(value)]
+    unusable = [key for key, value in values.items() if not value.is_finite()]
     if unusable:
         raise StoreError(f"{ref}: nutrients not finite: {', '.join(unusable)}")
 
@@ -191,7 +197,7 @@ def _ingredient_mapping(item: Ingredient) -> dict[str, Any]:
 
     # Omitted rather than zeroed, so unresolved reads apart from calorie-free.
     if item.macros is not None:
-        mapping.update(item.macros.stated())
+        mapping.update(figure_numbers(item.macros.stated()))
 
     return mapping
 

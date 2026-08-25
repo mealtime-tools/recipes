@@ -8,6 +8,7 @@ Keeping both is what lets a recipe outlive the database it came from.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from typing import Protocol, runtime_checkable
 
 from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
@@ -22,8 +23,30 @@ PRODUCT_SOURCES = (
     "manual",
 )
 
+# What a figure may arrive as. Pantry and every JSON source still send floats.
+Figure = Decimal | float | int | str
 
-def _nutrients(values: Mapping[str, float | None]) -> dict[str, float | None]:
+
+def to_decimal(value: Figure) -> Decimal:
+    """One figure as a decimal, whatever the source handed over.
+
+    A float is read through the shortest text that denotes it, so a source
+    that wrote `0.5` yields `Decimal("0.5")` and not the binary expansion
+    `Decimal(0.5)` would give. Refuses like `float` did, as a `ValueError`,
+    because every caller already maps that onto its own refusal.
+    """
+    if isinstance(value, Decimal):
+        return value
+
+    try:
+        return Decimal(str(value))
+    except InvalidOperation as exc:
+        raise ValueError(f"not a number: {value!r}") from exc
+
+
+def _nutrients(
+    values: Mapping[str, Figure | None],
+) -> dict[str, Decimal | None]:
     """One nutrient mapping in `NUTRIENTS` order, missing keys as null.
 
     The share payload carries no version field, so the library's order is the
@@ -38,7 +61,12 @@ def _nutrients(values: Mapping[str, float | None]) -> dict[str, float | None]:
     if missing:
         raise TypeError(f"missing nutrients: {', '.join(missing)}")
 
-    return {key: values.get(key) for key in NUTRIENTS}
+    # Coerced here, so no snapshot anywhere can hold a binary float.
+    stated = {key: values.get(key) for key in NUTRIENTS}
+    return {
+        key: None if value is None else to_decimal(value)
+        for key, value in stated.items()
+    }
 
 
 @dataclass(frozen=True, init=False)
@@ -50,12 +78,12 @@ class Macros:
     on read so a frozen snapshot cannot be edited through it.
     """
 
-    _values: dict[str, float | None]
+    _values: dict[str, Decimal | None]
 
-    def __init__(self, **values: float | None) -> None:
+    def __init__(self, **values: Figure | None) -> None:
         object.__setattr__(self, "_values", _nutrients(values))
 
-    def as_dict(self) -> dict[str, float | None]:
+    def as_dict(self) -> dict[str, Decimal | None]:
         """Every standard nutrient. Unknown values are null, never zero.
 
         Not a wire format: nothing emits this. It is for the two readers that
@@ -66,7 +94,7 @@ class Macros:
         """
         return dict(self._values)
 
-    def stated(self) -> dict[str, float | None]:
+    def stated(self) -> dict[str, Decimal | None]:
         """Only the nutrients this snapshot carries, in the same order.
 
         What everything emits. An absent key and an explicit null both read
@@ -80,15 +108,20 @@ class Macros:
             if value is not None or key in CORE_NUTRIENTS
         }
 
-    def scaled(self, factor: float) -> "Macros":
+    def scaled(self, factor: Figure) -> "Macros":
         """The same nutrients for `factor` times the weight.
+
+        Decimal throughout: as binary floats `2.8 * (10 / 100)` is
+        `0.27999999999999997`, and that noise was landing in stored recipes
+        and in share links.
 
         A nutrient the source never stated stays unstated: scaling an absent
         reading into a zero would report it as sourced.
         """
+        multiplier = to_decimal(factor)
         return Macros(
             **{
-                key: None if value is None else value * factor
+                key: None if value is None else value * multiplier
                 for key, value in self._values.items()
             }
         )
@@ -112,8 +145,8 @@ class Product:
     def macros(self, grams: float | None = None) -> Macros:
         """Nutrients for `grams`, or the record's own figures unscaled."""
         # Pantry's format: a record with no weight states per-100 g figures.
-        basis = self.grams or 100.0
-        return self.nutrients.scaled((grams or basis) / basis)
+        basis = to_decimal(self.grams or 100)
+        return self.nutrients.scaled(to_decimal(grams or basis) / basis)
 
 
 @runtime_checkable

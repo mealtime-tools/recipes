@@ -2,6 +2,7 @@
 
 import json
 import math
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -11,7 +12,13 @@ from mealtime_nutrients import CORE_NUTRIENTS, NUTRIENTS
 
 from recipes import store
 from recipes.commands.shared import dir_option, refusing, resolve_dir
-from recipes.models import PRODUCT_SOURCES, Ingredient, Macros, Recipe
+from recipes.models import (
+    PRODUCT_SOURCES,
+    Ingredient,
+    Macros,
+    Recipe,
+    to_decimal,
+)
 from recipes.render import describe
 
 
@@ -58,7 +65,7 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
     if missing:
         raise UsageError(f"input nutrients missing {', '.join(missing)}")
 
-    values: dict[str, float | None] = {}
+    values: dict[str, Decimal] = {}
     for key in NUTRIENTS:
         value = item.get(key)
         # Left out rather than stored as a null: `Macros` reads both the same.
@@ -68,7 +75,7 @@ def _ingredient(item: dict[str, Any]) -> Ingredient:
             raise UsageError(f"{key} must be a number or null")
         if not math.isfinite(value) or value < 0:
             raise UsageError(f"{key} must be non-negative and finite")
-        values[key] = float(value)
+        values[key] = to_decimal(value)
 
     source = str(item.get("source") or "manual")
     if source not in PRODUCT_SOURCES:
