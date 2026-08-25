@@ -55,7 +55,7 @@ wheels = [
 
 [[package]]
 name = "mealtime-pantry"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -64,14 +64,14 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "rapidfuzz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/c6/56298ff08f7d4117d5841bf7ba28787413660d06865579d0ea39ccabea30/mealtime_pantry-0.3.0.tar.gz", hash = "sha256:b40d72f276b7773a44dfde5f57d64979867159f3e0a57a9089ebe117ea71c72e", size = 109028, upload-time = "2026-08-24T23:47:44.128Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/a0/380dc9ceff900dd17a2de70d3a54eb6e8c70e36dbb43a482b87b5ff43d33/mealtime_pantry-0.3.1.tar.gz", hash = "sha256:20deefe231ecb368392c3389ddd396f84fdbe52217922255c66a19735d82c6f8", size = 112440, upload-time = "2026-08-25T01:00:56.913Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/48/19634ee7b0f389c633d3cccbe0e8863edad9d76d12773b2bb0ce76ddbd0e/mealtime_pantry-0.3.0-py3-none-any.whl", hash = "sha256:63e59c533b7692d690472f61d252a30ea248f5af3b6adb1fb232813d923d2820", size = 98982, upload-time = "2026-08-24T23:47:42.814Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/86/a9bdb4dc29498a089851305185fc068cda79c02b2443c078627d71f176dd/mealtime_pantry-0.3.1-py3-none-any.whl", hash = "sha256:67f50f2c9576de388e7c71de2edbeab1a86617c666c85b6b2ee1b5de299dbd69", size = 103640, upload-time = "2026-08-25T01:00:55.581Z" },
 ]
 
 [[package]]
 name = "mealtime-recipes"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
