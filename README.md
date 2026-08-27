@@ -19,5 +19,7 @@ as a `null`, and an explicit zero remains zero. JSON food items are flat. Share
 links keep the compressed `#r=` format understood by Plate; the payload uses the
 same fields.
 Ingredient nutrients describe their `grams`, which every item must state as a
-positive weight; recipe output describes one recipe serving and can be piped
-directly to Nutrilog.
+positive weight; recipe output describes one recipe serving and is a flat record
+in the shared
+[item format](https://github.com/mealtime-tools/nutrients/blob/main/FORMAT.md),
+so it pipes straight into whatever tool records what you ate.
