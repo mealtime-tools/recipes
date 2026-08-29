@@ -2,7 +2,7 @@
 # `recipes` is taken on PyPI, so the distribution is prefixed. The import
 # stays `recipes`.
 name = "mealtime-recipes"
-version = "0.3.2"
+version = "0.3.3"
 description = "Edit, view, resolve, and share local recipes."
 readme = "README.md"
 license = "MIT"
@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "click-agentcli>=0.1.0",
+    "click-agentcli>=0.4.1",
     "mealtime-nutrients>=0.3.0",
     "mealtime-pantry>=0.3.0",
     "click>=8.1",
